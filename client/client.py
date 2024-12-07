@@ -2,7 +2,7 @@ import socket
 from config import SERVER_PORT, CLIENT_PORT, BUFFER_SIZE
 
 SERVER_IP = "127.0.0.1"
-
+z
 
 def dhcp_client():
     # Create a UDP socket

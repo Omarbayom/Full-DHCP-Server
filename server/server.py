@@ -3,7 +3,11 @@ from threading import Thread
 from config import SERVER_PORT, CLIENT_PORT, BUFFER_SIZE
 
 # IP pool for the server to assign
-ip_pool = ["192.168.1.2", "192.168.1.3", "192.168.1.4"]
+# from 192.168.1.2 to 192.168.1.254
+ip_pool = [f"192.168.1.{i}" for i in range(2, 255)]
+
+#  IP = 192.168.1.1 is reserved to the server
+
 leased_ips = {}
 
 
