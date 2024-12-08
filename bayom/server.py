@@ -38,6 +38,11 @@ def handle_client(message, client_address, server_socket):
 
     if msg_type == 1:  # DHCP Discover
         print(f"Received DHCP Discover from {client_address}")
+        
+        # Extract MAC address from the message (starting from byte 5)
+        mac_address = ':'.join(['%02x' % b for b in message[5:11]])  # MAC is 6 bytes
+        print(f"Client MAC Address: {mac_address}")
+
         with ip_pool_lock:
             if ip_pool:
                 offered_ip = ip_pool.pop(0)
@@ -45,9 +50,9 @@ def handle_client(message, client_address, server_socket):
                     lease_table[client_address] = (offered_ip, time.time() + lease_duration)
                 print(f"Offering IP {offered_ip} to {client_address}")
 
-                # DHCP Offer
+                # DHCP Offer: Include MAC address in the offer
                 offer_message = struct.pack(
-                    "!I B 4s", xid, 2, socket.inet_aton(offered_ip)
+                    "!I B 4s 16s", xid, 2, socket.inet_aton(offered_ip), bytes.fromhex(mac_address.replace(":", ""))
                 )
                 server_socket.sendto(offer_message, client_address)
             else:
@@ -56,7 +61,7 @@ def handle_client(message, client_address, server_socket):
                 server_socket.sendto(nak_message, client_address)
 
     elif msg_type == 3:  # DHCP Request
-        requested_ip = socket.inet_ntoa(message[5:])
+        requested_ip = socket.inet_ntoa(message[5:9])
         print(f"Received DHCP Request for {requested_ip} from {client_address}")
 
         with lease_table_lock:

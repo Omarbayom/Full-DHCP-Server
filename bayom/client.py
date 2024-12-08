@@ -16,8 +16,11 @@ def generate_transaction_id():
 # Send a DHCP Discover message to the server
 def send_dhcp_discover(client_socket, xid, mac_address):
     msg_type = 1  # DHCP Discover
-    mac_bytes = bytes.fromhex(mac_address.replace(":", ""))
-    discover_message = struct.pack("!I B 6s", xid, msg_type, mac_bytes)
+    mac_bytes = bytes.fromhex(mac_address.replace(":", ""))  # Convert MAC address to bytes
+    
+    mac_bytes = mac_bytes.ljust(16, b'\x00')
+
+    discover_message = struct.pack("!I B 16s", xid, msg_type, mac_bytes)
 
     client_socket.sendto(discover_message, ("255.255.255.255", 67))
     print(f"Sent DHCP Discover from MAC {mac_address}...")
