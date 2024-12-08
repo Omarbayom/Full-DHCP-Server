@@ -44,7 +44,8 @@ def start_dhcp_client():
             # Wait for lease duration to expire before requesting a new IP
             time.sleep(lease_duration + 1)  # Wait for lease to expire
             print("Lease expired, requesting a new IP...")
-
+            print("Closing the connection.")
+            client_socket.close()
             # Send a new DHCP Discover after the lease expires
             send_dhcp_discover(client_socket)
 
