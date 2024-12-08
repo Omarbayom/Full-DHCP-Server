@@ -7,7 +7,7 @@ import time
 lease_table = {}
 ip_pool = ["192.168.1.100", "192.168.1.101", "192.168.1.102"]  # Example IP pool
 lease_duration = 3600  # Lease time in seconds (1 hour)
-server_ip = "192.168.1.1"  # DHCP server IP address
+server_ip = "192.168.1.10"  # DHCP server IP address
 
 
 def handle_client(message, client_address, server_socket):
