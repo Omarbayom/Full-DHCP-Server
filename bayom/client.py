@@ -46,6 +46,9 @@ def start_dhcp_client():
             print("Lease expired, requesting a new IP...")
             print("Closing the connection.")
             client_socket.close()
+            client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            client_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+            client_socket.bind(("", 68))
             # Send a new DHCP Discover after the lease expires
             send_dhcp_discover(client_socket)
 
