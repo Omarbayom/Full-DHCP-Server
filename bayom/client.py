@@ -1,9 +1,10 @@
 import socket
 import struct
+import time
 
 client_mac = "00:1A:2B:3C:4D:5E"  # Example MAC address
 
-
+# Send a DHCP Discover message to the server
 def send_dhcp_discover(client_socket):
     xid = 12345  # Unique transaction ID
     msg_type = 1  # DHCP Discover
@@ -12,7 +13,7 @@ def send_dhcp_discover(client_socket):
     client_socket.sendto(discover_message, ("255.255.255.255", 67))
     print("Sent DHCP Discover...")
 
-
+# Start the DHCP client
 def start_dhcp_client():
     # Create a UDP socket
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -37,13 +38,21 @@ def start_dhcp_client():
             print(f"Requested IP: {offered_ip}")
 
         elif msg_type == 5:  # DHCP Ack
-            print("Received DHCP Ack: Lease successful!")
-            break
+            lease_duration = struct.unpack("!I", message[9:13])[0]  # Extract lease duration from DHCP Ack
+            print(f"Received DHCP Ack: Lease successful! Lease duration: {lease_duration} seconds")
+            
+            # Wait for lease duration to expire before requesting a new IP
+            time.sleep(lease_duration + 1)  # Wait for lease to expire
+            print("Lease expired, requesting a new IP...")
+
+            # Send a new DHCP Discover after the lease expires
+            send_dhcp_discover(client_socket)
 
         elif msg_type == 6:  # DHCP Nak
             print("Received DHCP Nak: Request rejected.")
             break
 
+        time.sleep(1)  # Small delay to avoid flooding
 
 if __name__ == "__main__":
     start_dhcp_client()
