@@ -19,16 +19,18 @@ def lease_expiry_checker():
         expired_clients = []
 
         with lease_table_lock:
-            for client_address, (ip, lease_expiry) in lease_table.items():
+            for client_address, (ip, lease_expiry,_,_) in lease_table.items():
                 if lease_expiry < current_time:
                     expired_clients.append(client_address)
 
             for client_address in expired_clients:
-                ip, _ = lease_table.pop(client_address)
+                woh=lease_table[client_address]
+                print(lease_table[client_address])
+                ip, _,_,_ = lease_table.pop(client_address)
                 with ip_pool_lock:
                     ip_pool.append(ip)  # Return IP to the pool
                 print(f"Lease expired: Released IP {
-                      ip} for client {client_address}")
+                      ip} for client {woh}")
 
         time.sleep(5)  # Check every 5 seconds
 
@@ -51,7 +53,7 @@ def handle_client(message, client_address, server_socket):
                 offered_ip = ip_pool.pop(0)
                 with lease_table_lock:
                     lease_table[client_address] = (
-                        offered_ip, time.time() + lease_duration)
+                        offered_ip, time.time() + lease_duration,xid,mac_address)
                 print(f"Offering IP {offered_ip} to {client_address}")
 
                 # DHCP Offer: Include MAC address in the offer
@@ -74,7 +76,7 @@ def handle_client(message, client_address, server_socket):
             if client_address in lease_table and lease_table[client_address][0] == requested_ip:
                 # Renew the lease
                 lease_table[client_address] = (
-                    requested_ip, time.time() + lease_duration)
+                    requested_ip, time.time() + lease_duration,lease_table[client_address][2],lease_table[client_address][3])
 
                 # DHCP Ack
                 ack_message = struct.pack(
