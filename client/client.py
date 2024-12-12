@@ -61,7 +61,7 @@ def send_dhcp_request(client_socket, xid, mac_address, server_identifier, offere
     request_message += struct.pack("!B", 255)
 
     # Send the message to the server
-    client_socket.sendto(request_message, ("255.255.255.255", 67))
+    client_socket.sendto(request_message, (str(server_address[0]), 67))
     print(f"Sent DHCP Request for IP {offered_ip} to server {server_address}")
 
 # Start the DHCP client

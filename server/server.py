@@ -18,15 +18,28 @@ def lease_expiry_checker():
         with lease_table_lock:
             for client_address, (ip, lease_expiry, xid, mac_address) in lease_table.items():
                 if lease_expiry < current_time:
-                    expired_clients.append(client_address)
+                    expired_clients.append((client_address, xid, mac_address))
 
-            for client_address in expired_clients:
-                ip, _, xid, mac_address = lease_table.pop(client_address)
+            for client_address, xid, mac_address in expired_clients:
+                ip, _, _, _ = lease_table.pop(client_address)
+                
+                # Return the IP to the pool
                 with ip_pool_lock:
-                    ip_pool.append(ip)  # Return IP to the pool
-                print(f"Lease expired: Released IP {ip} for client {client_address} (MAC: {mac_address})")
+                    ip_pool.append(ip)
+                
+                print(f"Lease expired: Released IP {ip} for client {client_address} (MAC: {mac_address}) (XID: {xid})")
+                
+                # Remove the client from discover_cache
+                with discover_cache_lock:  # Ensure thread safety if discover_cache is shared across threads
 
+                    for key in list(discover_cache.keys()):
+                        print(f"Checking {mac_address} with {discover_cache[key].get('mac_address')}")
+                        if discover_cache[key].get('mac_address') == mac_address:
+                            del discover_cache[key]
+                            print(f"Removed client {client_address} (MAC: {mac_address}) from discover_cache")
+                            break  # Exit loop once the entry is found and removed
         time.sleep(5)  # Check every 5 seconds
+
 
 # Function to check if an IP address is in use (ping probe)
 def is_ip_in_use(ip):
