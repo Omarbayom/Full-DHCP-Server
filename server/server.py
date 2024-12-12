@@ -85,7 +85,7 @@ def handle_client(message, client_address, server_socket):
                 print(f"Requested Lease Duration: {requested_lease} seconds")
             i += 2 + option_length
 
-        if requested_ip and is_ip_in_use(requested_ip):
+        if not requested_ip and not is_ip_in_use(requested_ip):
             print(f"IP {requested_ip} is already in use. Selecting another IP.")
             requested_ip = ip_pool[0]
 
