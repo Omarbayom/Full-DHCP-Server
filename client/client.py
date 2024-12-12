@@ -10,12 +10,10 @@ def generate_unique_mac():
            random.randint(0x00, 0xFF), random.randint(0x00, 0xFF)]
     return ":".join(f"{octet:02X}" for octet in mac)
 
-
 # Function to generate a unique transaction ID
 def generate_transaction_id():
     """Generate a unique transaction ID."""
     return random.randint(1, 0xFFFFFFFF)
-
 
 # Send a DHCP Discover message to the server with options
 def send_dhcp_discover(client_socket, xid, mac_address, requested_ip=None, lease_duration=None):
@@ -39,7 +37,7 @@ def send_dhcp_discover(client_socket, xid, mac_address, requested_ip=None, lease
         options += struct.pack("!BBI", 51, 4, lease_duration)  # Option 51 (Lease Time)
 
     # Append end of options field (Option 255)
-    options += struct.pack("!BB", 255, 0)
+    options += struct.pack("!B", 255)
 
     # Final message: DHCP Discover + Options
     discover_message += options
@@ -48,11 +46,29 @@ def send_dhcp_discover(client_socket, xid, mac_address, requested_ip=None, lease
     client_socket.sendto(discover_message, ("255.255.255.255", 67))
     print(f"Sent DHCP Discover from MAC {mac_address} with options: IP {requested_ip}, Lease Duration {lease_duration}...")
 
+# Send DHCP Request message to the server
+def send_dhcp_request(client_socket, xid, mac_address, server_identifier, offered_ip,server_address):
+    msg_type = 3  # DHCP Request
+    mac_bytes = bytes.fromhex(mac_address.replace(":", ""))  # Convert MAC address to bytes
+
+    # Pad MAC address to 16 bytes (if shorter)
+    mac_bytes = mac_bytes.ljust(16, b'\x00')
+
+    # Start building the DHCP Request message
+    request_message = struct.pack("!I B 16s 4s 4s", xid, msg_type, mac_bytes, socket.inet_aton(server_identifier), socket.inet_aton(offered_ip))
+
+    # Append end of options field (Option 255)
+    request_message += struct.pack("!B", 255)
+
+    # Send the message to the server
+    client_socket.sendto(request_message, ("255.255.255.255", 67))
+    print(f"Sent DHCP Request for IP {offered_ip} to server {server_address}")
 
 # Start the DHCP client
-def start_dhcp_client():
+def start_dhcp_client(mac_address=None,requested_ip=None,lease_duration=None):
     # Generate unique identifiers for the client
-    mac_address = generate_unique_mac()
+
+
     xid = generate_transaction_id()
 
     # Bind to a unique port for each instance
@@ -69,8 +85,7 @@ def start_dhcp_client():
     print(f"Starting DHCP client on port {port} with MAC {mac_address} and XID {xid}...")
 
     # Define optional DHCP Discover parameters (requested IP and lease duration)
-    requested_ip = "192.168.1.101"  # Example requested IP
-    lease_duration = 15  # Example lease duration (1 hour)
+
 
     # Send DHCP Discover with options
     send_dhcp_discover(client_socket, xid, mac_address, requested_ip, lease_duration)
@@ -87,13 +102,11 @@ def start_dhcp_client():
 
             if msg_type == 2:  # DHCP Offer
                 offered_ip = socket.inet_ntoa(message[5:9])
+                server_identifier = socket.inet_ntoa(message[9:13])
                 print(f"Received DHCP Offer: {offered_ip} from {server_address}")
 
                 # Send DHCP Request
-                request_message = struct.pack(
-                    "!I B 4s", xid, 3, socket.inet_aton(offered_ip))
-                client_socket.sendto(request_message, server_address)
-                print(f"Requested IP: {offered_ip}")
+                send_dhcp_request(client_socket, xid, mac_address, server_identifier, offered_ip,server_address)
 
             elif msg_type == 5:  # DHCP Ack
                 # Extract lease duration from DHCP Ack
@@ -110,9 +123,13 @@ def start_dhcp_client():
     except socket.timeout:
         print("Timeout: No response from DHCP server.")
         # Optionally retry or exit
+        print("Retry sending DHCP Discover...")
+        start_dhcp_client(mac_address=mac_address,requested_ip=requested_ip,lease_duration=lease_duration)
     finally:
         client_socket.close()
 
-
 if __name__ == "__main__":
-    start_dhcp_client()
+    requested_ip = "192.168.1.101"  # Example requested IP
+    lease_duration = 15  
+    mac_address = generate_unique_mac()
+    start_dhcp_client(mac_address=mac_address,requested_ip=requested_ip,lease_duration=lease_duration)
