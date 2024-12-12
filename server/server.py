@@ -28,6 +28,21 @@ def lease_expiry_checker():
 
         time.sleep(5)  # Check every 5 seconds
 
+# Function to check if an IP address is in use (ping probe)
+def is_ip_in_use(ip):
+    try:
+        # Send an ICMP Echo Request (ping) to the offered IP address
+        sock = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.IPPROTO_ICMP)
+        sock.settimeout(1)
+        sock.sendto(b'\x08\x00\x7f\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00', (ip, 0))  # ICMP Echo Request
+        sock.recvfrom(1024)  # Wait for the response
+        sock.close()
+        return True  # IP is in use
+    except socket.timeout:
+        return False  # No response, IP is free
+    except Exception:
+        return False  # Handle other exceptions
+
 # Handles incoming DHCP messages from clients
 def handle_client(message, client_address, server_socket):
     xid, msg_type = struct.unpack("!I B", message[:5])
@@ -45,7 +60,7 @@ def handle_client(message, client_address, server_socket):
         requested_lease = lease_duration
 
         i = 0
-        while i < len(options):
+        while i+1 < len(options):
             option_type = options[i]
             option_length = options[i + 1]
             option_value = options[i + 2:i + 2 + option_length]
@@ -56,8 +71,10 @@ def handle_client(message, client_address, server_socket):
                 requested_lease = struct.unpack("!I", option_value)[0]
                 print(f"Requested Lease Duration: {requested_lease} seconds")
             i += 2 + option_length
-        if not requested_ip:
-            requested_ip=ip_pool[0]
+
+        if requested_ip and is_ip_in_use(requested_ip):
+            print(f"IP {requested_ip} is already in use. Selecting another IP.")
+            requested_ip = ip_pool[0]
 
         # Save the Discover message options for later use in Request
         with discover_cache_lock:
@@ -90,7 +107,6 @@ def handle_client(message, client_address, server_socket):
         requested_lease = lease_duration
         requested_ip = socket.inet_ntoa(message[5:9])
 
-
         # Retrieve saved Discover data from cache
         with discover_cache_lock:
             discover_data = discover_cache.get(client_address)
@@ -117,7 +133,6 @@ def handle_client(message, client_address, server_socket):
                 nak_message = struct.pack("!I B", xid, 6)
                 server_socket.sendto(nak_message, client_address)
                 print(f"Rejected IP request {requested_ip} from {client_address} (MAC: {lease_table.get(client_address, ('',))[3]})")
-
 
 # Starts the DHCP server
 def start_dhcp_server():
