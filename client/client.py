@@ -3,7 +3,7 @@ import struct
 import time
 import random
 
-
+# Function to generate a unique MAC address
 def generate_unique_mac():
     """Generate a unique MAC address."""
     mac = [0x00, 0x1A, 0x2B, random.randint(0x00, 0xFF),
@@ -11,32 +11,50 @@ def generate_unique_mac():
     return ":".join(f"{octet:02X}" for octet in mac)
 
 
+# Function to generate a unique transaction ID
 def generate_transaction_id():
     """Generate a unique transaction ID."""
     return random.randint(1, 0xFFFFFFFF)
 
-# Send a DHCP Discover message to the server
 
-
-def send_dhcp_discover(client_socket, xid, mac_address):
+# Send a DHCP Discover message to the server with options
+def send_dhcp_discover(client_socket, xid, mac_address, requested_ip=None, lease_duration=None):
     msg_type = 1  # DHCP Discover
-    mac_bytes = bytes.fromhex(mac_address.replace(
-        ":", ""))  # Convert MAC address to bytes
+    mac_bytes = bytes.fromhex(mac_address.replace(":", ""))  # Convert MAC address to bytes
 
+    # Pad MAC address to 16 bytes (if shorter)
     mac_bytes = mac_bytes.ljust(16, b'\x00')
 
+    # Start building the DHCP Discover message
     discover_message = struct.pack("!I B 16s", xid, msg_type, mac_bytes)
 
+    # Optional DHCP Options: Requested IP and Lease Duration
+    options = b''
+
+    if requested_ip:
+        requested_ip_bytes = socket.inet_aton(requested_ip)
+        options += struct.pack("!BB4s", 50, 4, requested_ip_bytes)  # Option 50 (Requested IP)
+
+    if lease_duration:
+        options += struct.pack("!BBI", 51, 4, lease_duration)  # Option 51 (Lease Time)
+
+    # Append end of options field (Option 255)
+    options += struct.pack("!BB", 255, 0)
+
+    # Final message: DHCP Discover + Options
+    discover_message += options
+
+    # Send the message to the broadcast address on port 67 (DHCP Server)
     client_socket.sendto(discover_message, ("255.255.255.255", 67))
-    print(f"Sent DHCP Discover from MAC {mac_address}...")
+    print(f"Sent DHCP Discover from MAC {mac_address} with options: IP {requested_ip}, Lease Duration {lease_duration}...")
+
 
 # Start the DHCP client
-
-
 def start_dhcp_client():
     # Generate unique identifiers for the client
     mac_address = generate_unique_mac()
     xid = generate_transaction_id()
+
     # Bind to a unique port for each instance
     port = random.randint(10000, 65000)
 
@@ -48,11 +66,14 @@ def start_dhcp_client():
     # Set timeout for the socket
     client_socket.settimeout(10)  # Timeout in seconds
 
-    print(f"Starting DHCP client on port {
-          port} with MAC {mac_address} and XID {xid}...")
+    print(f"Starting DHCP client on port {port} with MAC {mac_address} and XID {xid}...")
 
-    # Send DHCP Discover
-    send_dhcp_discover(client_socket, xid, mac_address)
+    # Define optional DHCP Discover parameters (requested IP and lease duration)
+    requested_ip = "192.168.1.101"  # Example requested IP
+    lease_duration = 15  # Example lease duration (1 hour)
+
+    # Send DHCP Discover with options
+    send_dhcp_discover(client_socket, xid, mac_address, requested_ip, lease_duration)
 
     try:
         while True:
@@ -66,8 +87,7 @@ def start_dhcp_client():
 
             if msg_type == 2:  # DHCP Offer
                 offered_ip = socket.inet_ntoa(message[5:9])
-                print(f"Received DHCP Offer: {
-                      offered_ip} from {server_address}")
+                print(f"Received DHCP Offer: {offered_ip} from {server_address}")
 
                 # Send DHCP Request
                 request_message = struct.pack(
@@ -78,8 +98,7 @@ def start_dhcp_client():
             elif msg_type == 5:  # DHCP Ack
                 # Extract lease duration from DHCP Ack
                 lease_duration = struct.unpack("!I", message[9:13])[0]
-                print(f"Received DHCP Ack: Lease successful! Lease duration: {
-                      lease_duration} seconds")
+                print(f"Received DHCP Ack: Lease successful! Lease duration: {lease_duration} seconds")
                 break
 
             elif msg_type == 6:  # DHCP Nak

@@ -2,41 +2,33 @@ import socket
 import struct
 import threading
 import time
-
-from config import ip_pool, lease_duration, server_ip, lease_table
-
+from config import ip_pool, lease_duration, server_ip, lease_table, discover_cache
 
 # Lock for synchronizing access to shared data
 lease_table_lock = threading.Lock()
 ip_pool_lock = threading.Lock()
+discover_cache_lock = threading.Lock()
 
 # Periodically checks for expired leases
-
-
 def lease_expiry_checker():
     while True:
         current_time = time.time()
         expired_clients = []
 
         with lease_table_lock:
-            for client_address, (ip, lease_expiry,_,_) in lease_table.items():
+            for client_address, (ip, lease_expiry, xid, mac_address) in lease_table.items():
                 if lease_expiry < current_time:
                     expired_clients.append(client_address)
 
             for client_address in expired_clients:
-                woh=lease_table[client_address]
-                print(lease_table[client_address])
-                ip, _,_,_ = lease_table.pop(client_address)
+                ip, _, xid, mac_address = lease_table.pop(client_address)
                 with ip_pool_lock:
                     ip_pool.append(ip)  # Return IP to the pool
-                print(f"Lease expired: Released IP {
-                      ip} for client {woh}")
+                print(f"Lease expired: Released IP {ip} for client {client_address} (MAC: {mac_address})")
 
         time.sleep(5)  # Check every 5 seconds
 
 # Handles incoming DHCP messages from clients
-
-
 def handle_client(message, client_address, server_socket):
     xid, msg_type = struct.unpack("!I B", message[:5])
 
@@ -44,56 +36,90 @@ def handle_client(message, client_address, server_socket):
         print(f"Received DHCP Discover from {client_address}")
 
         # Extract MAC address from the message (starting from byte 5)
-        mac_address = ':'.join(
-            ['%02x' % b for b in message[5:11]])  # MAC is 6 bytes
+        mac_address = ':'.join(['%02x' % b for b in message[5:11]])  # MAC is 6 bytes
         print(f"Client MAC Address: {mac_address}")
 
+        # Extract requested IP and lease duration if present
+        options = message[11:]  # DHCP options start after the MAC address
+        requested_ip = None
+        requested_lease = lease_duration
+
+        i = 0
+        while i < len(options):
+            option_type = options[i]
+            option_length = options[i + 1]
+            option_value = options[i + 2:i + 2 + option_length]
+            if option_type == 50:  # Requested IP (Option 50)
+                requested_ip = socket.inet_ntoa(option_value)
+                print(f"Requested IP: {requested_ip}")
+            elif option_type == 51:  # Lease Duration (Option 51)
+                requested_lease = struct.unpack("!I", option_value)[0]
+                print(f"Requested Lease Duration: {requested_lease} seconds")
+            i += 2 + option_length
+        if not requested_ip:
+            requested_ip=ip_pool[0]
+
+        # Save the Discover message options for later use in Request
+        with discover_cache_lock:
+            discover_cache[client_address] = {
+                'mac_address': mac_address,
+                'requested_ip': requested_ip,
+                'requested_lease': requested_lease or lease_duration
+            }
+
+        # Send DHCP Offer
         with ip_pool_lock:
-            if ip_pool:
-                offered_ip = ip_pool.pop(0)
+            if requested_ip and requested_ip in ip_pool:
+                ip_pool.remove(requested_ip)
                 with lease_table_lock:
                     lease_table[client_address] = (
-                        offered_ip, time.time() + lease_duration,xid,mac_address)
-                print(f"Offering IP {offered_ip} to {client_address}")
+                        requested_ip, time.time() + requested_lease, xid, mac_address
+                    )
+                print(f"Offering Requested IP {requested_ip} to {client_address} (MAC: {mac_address}) with lease duration {requested_lease} seconds")
 
-                # DHCP Offer: Include MAC address in the offer
                 offer_message = struct.pack(
-                    "!I B 4s 16s", xid, 2, socket.inet_aton(
-                        offered_ip), bytes.fromhex(mac_address.replace(":", ""))
+                    "!I B 4s 16s", xid, 2, socket.inet_aton(requested_ip), bytes.fromhex(mac_address.replace(":", ""))
                 )
                 server_socket.sendto(offer_message, client_address)
             else:
-                print("No IPs available in the pool.")
-                nak_message = struct.pack("!I B", xid, 6)
+                print(f"Requested IP {requested_ip} is not available.")
+                nak_message = struct.pack("!I B", xid, 6)  # DHCP NAK (Not Acknowledged)
                 server_socket.sendto(nak_message, client_address)
 
     elif msg_type == 3:  # DHCP Request
+        requested_lease = lease_duration
         requested_ip = socket.inet_ntoa(message[5:9])
-        print(f"Received DHCP Request for {
-              requested_ip} from {client_address}")
+
+
+        # Retrieve saved Discover data from cache
+        with discover_cache_lock:
+            discover_data = discover_cache.get(client_address)
+            if discover_data:
+                requested_ip =  discover_data['requested_ip'] or requested_ip
+                requested_lease =   discover_data['requested_lease']or requested_lease
+                print(f"Received DHCP Request from {client_address} for IP {requested_ip} with lease duration {requested_lease} seconds")
 
         with lease_table_lock:
             if client_address in lease_table and lease_table[client_address][0] == requested_ip:
-                # Renew the lease
+                # Renew the lease with the requested lease time
                 lease_table[client_address] = (
-                    requested_ip, time.time() + lease_duration,lease_table[client_address][2],lease_table[client_address][3])
+                    requested_ip, time.time() + requested_lease, lease_table[client_address][2], lease_table[client_address][3]
+                )
 
-                # DHCP Ack
+                # DHCP Ack with the requested lease duration
                 ack_message = struct.pack(
-                    "!I B 4s I", xid, 5, socket.inet_aton(requested_ip), lease_duration)
+                    "!I B 4s I", xid, 5, socket.inet_aton(requested_ip), requested_lease
+                )
                 server_socket.sendto(ack_message, client_address)
-                print(f"Assigned IP {requested_ip} to {
-                      client_address} with lease duration {lease_duration} seconds")
+                print(f"Assigned IP {requested_ip} to {client_address} (MAC: {lease_table[client_address][3]}) with lease duration {requested_lease} seconds")
             else:
-                # DHCP Nak
+                # DHCP Nak if the requested IP does not match
                 nak_message = struct.pack("!I B", xid, 6)
                 server_socket.sendto(nak_message, client_address)
-                print(f"Rejected IP request {
-                      requested_ip} from {client_address}")
+                print(f"Rejected IP request {requested_ip} from {client_address} (MAC: {lease_table.get(client_address, ('',))[3]})")
+
 
 # Starts the DHCP server
-
-
 def start_dhcp_server():
     # Create a UDP socket
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -107,9 +133,7 @@ def start_dhcp_server():
     while True:
         # Receive DHCP messages
         message, client_address = server_socket.recvfrom(1024)
-        threading.Thread(target=handle_client, args=(
-            message, client_address, server_socket)).start()
-
+        threading.Thread(target=handle_client, args=(message, client_address, server_socket)).start()
 
 if __name__ == "__main__":
     start_dhcp_server()
