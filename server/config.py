@@ -22,7 +22,7 @@ server_ip = socket.gethostbyname(socket.gethostname())  # Get the local IP addre
 
 # Lease table: Keeps track of active leases and expiry times
 # Example format: lease_table = {client_address: (ip, lease_expiry, xid, mac_address)}
-lease_table = {}
+lease_table = []
 discover_cache={}
 
 # Logging configurations (Optional for better debugging)
