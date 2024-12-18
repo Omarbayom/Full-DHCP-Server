@@ -5,6 +5,8 @@ import time
 import subprocess
 import platform
 import logging
+from collections import deque
+import heapq
 from config import ip_pool, lease_duration, server_ip, lease_table, discover_cache
 
 # Configure logging
@@ -22,52 +24,69 @@ lease_table_lock = threading.Lock()
 ip_pool_lock = threading.Lock()
 discover_cache_lock = threading.Lock()
 
+# Convert IP pool to a deque for efficient IP allocation
+ip_pool = deque(ip_pool)
+
+
+# Function to add or update a lease in the priority queue (min-heap)
+def add_lease(client_address, ip, lease_duration, xid, mac_address):
+    expiry_time = time.time() + lease_duration
+    heapq.heappush(lease_table, (expiry_time, client_address, xid, mac_address, ip))
+
+# Function to remove expired leases from the heap
+def remove_expired_leases():
+    current_time = time.time()
+    expired_clients = []
+
+    while lease_table and lease_table[0][0] < current_time:
+        _, client_address, xid, mac_address, ip = heapq.heappop(lease_table)
+        expired_clients.append((client_address, xid, mac_address, ip))
+    
+    # Handle expired leases
+    for client_address, xid, mac_address, ip in expired_clients:
+        with ip_pool_lock:
+            ip_pool.append(ip)  # Append IP back to pool
+        logging.info(f"Lease expired: Released IP {ip} for client {client_address} (MAC: {mac_address}) (XID: {xid})")
+        
+        # Remove the client from discover_cache
+        with discover_cache_lock:
+            for key in list(discover_cache.keys()):
+                if discover_cache[key].get('mac_address') == mac_address:
+                    del discover_cache[key]
+                    logging.info(f"Removed client {client_address} (MAC: {mac_address}) from discover_cache")
+                    break  # Exit loop once the entry is found and removed
+
 # Periodically checks for expired leases
 def lease_expiry_checker():
     while True:
-        current_time = time.time()
-        expired_clients = []
-
-        with lease_table_lock:
-            for client_address, (ip, lease_expiry, xid, mac_address) in lease_table.items():
-                if lease_expiry < current_time:
-                    expired_clients.append((client_address, xid, mac_address))
-
-            for client_address, xid, mac_address in expired_clients:
-                ip, _, _, _ = lease_table.pop(client_address)
-                
-                # Return the IP to the pool
-                with ip_pool_lock:
-                    ip_pool.append(ip)
-                
-                logging.info(f"Lease expired: Released IP {ip} for client {client_address} (MAC: {mac_address}) (XID: {xid})")
-                
-                # Remove the client from discover_cache
-                with discover_cache_lock:  # Ensure thread safety if discover_cache is shared across threads
-                    for key in list(discover_cache.keys()):
-                        logging.debug(f"Checking {mac_address} with {discover_cache[key].get('mac_address')}")
-                        if discover_cache[key].get('mac_address') == mac_address:
-                            del discover_cache[key]
-                            logging.info(f"Removed client {client_address} (MAC: {mac_address}) from discover_cache")
-                            break  # Exit loop once the entry is found and removed
-        time.sleep(5)  # Check every 5 seconds
+        remove_expired_leases()
+        time.sleep(1)  # Check every 5 seconds
 
 # Function to check if an IP address is in use (ping probe)
 def is_ip_in_use(ip):
     try:
+        # Use consistent timeout value across all platforms
+        timeout = 1  # 1 second for a quicker response
+
+        # Determine the ping command based on the platform
         if platform.system().lower() == 'windows':
-            response = subprocess.run(
-                ['ping', '-n', '1', '-w', '1000', ip], stdout=subprocess.PIPE, stderr=subprocess.PIPE
-            )
-        else:  # Assume Linux/Unix
-            response = subprocess.run(
-                ['ping', '-c', '1', '-w', '1', ip], stdout=subprocess.PIPE, stderr=subprocess.PIPE
-            )
-        return response.returncode == 0  # 0 means success
+            command = ['ping', '-n', '1', '-w', str(timeout * 1000), ip]
+        else:  # Assume Linux/macOS/Unix
+            command = ['ping', '-c', '1', '-W', str(timeout), ip]  # macOS/Linux uses '-W' for timeout
+
+        response = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+        # Return True if the ping was successful, i.e., returncode 0
+        if response.returncode == 0:
+            return True
+        else:
+            logging.warning(f"Ping failed for {ip}, stderr: {response.stderr.decode()}")
+            return False
+
     except Exception as e:
         logging.error(f"Error checking IP {ip}: {e}")
         return False
-
+    
 # Handles incoming DHCP messages from clients
 def handle_client(message, client_address, server_socket):
     xid, msg_type = struct.unpack("!I B", message[:5])
@@ -97,9 +116,11 @@ def handle_client(message, client_address, server_socket):
                 logging.info(f"Requested Lease Duration: {requested_lease} seconds")
             i += 2 + option_length
 
-        if not requested_ip and not is_ip_in_use(requested_ip):
+        if requested_ip and  is_ip_in_use(requested_ip):
             logging.info(f"IP {requested_ip} is already in use. Selecting another IP.")
             requested_ip = ip_pool[0]
+        if not requested_ip:
+            requested_ip=ip_pool[0]
 
         # Save the Discover message options for later use in Request
         with discover_cache_lock:
@@ -113,16 +134,14 @@ def handle_client(message, client_address, server_socket):
         with ip_pool_lock:
             if requested_ip and requested_ip in ip_pool:
                 ip_pool.remove(requested_ip)
-                with lease_table_lock:
-                    lease_table[client_address] = (
-                        requested_ip, time.time() + requested_lease, xid, mac_address
-                    )
+                add_lease(client_address, requested_ip, requested_lease, xid, mac_address)
                 logging.info(f"Offering Requested IP {requested_ip} to {client_address} (MAC: {mac_address}) with lease duration {requested_lease} seconds")
 
                 offer_message = struct.pack(
                     "!I B 4s 16s", xid, 2, socket.inet_aton(requested_ip), bytes.fromhex(mac_address.replace(":", ""))
                 )
-                server_socket.sendto(offer_message, client_address)
+                offer_message_with_option = offer_message + struct.pack("!BB", 53, 1) + struct.pack("B", 2)  # Option 53: Message Type = 2 (Offer)
+                server_socket.sendto(offer_message_with_option, client_address)
             else:
                 logging.warning(f"Requested IP {requested_ip} is not available.")
                 nak_message = struct.pack("!I B", xid, 6)  # DHCP NAK (Not Acknowledged)
@@ -140,24 +159,25 @@ def handle_client(message, client_address, server_socket):
                 requested_lease = discover_data['requested_lease'] or requested_lease
                 logging.info(f"Received DHCP Request from {client_address} for IP {requested_ip} with lease duration {requested_lease} seconds")
 
+        # Check lease table for the requested IP and assign it
         with lease_table_lock:
-            if client_address in lease_table and lease_table[client_address][0] == requested_ip:
-                # Renew the lease with the requested lease time
-                lease_table[client_address] = (
-                    requested_ip, time.time() + requested_lease, lease_table[client_address][2], lease_table[client_address][3]
-                )
+            for lease in lease_table:
+                if lease[4] == requested_ip and lease[1] == client_address:
+                    # Renew the lease with the requested lease time
+                    add_lease(client_address, requested_ip, requested_lease, lease[2], lease[3])
 
-                # DHCP Ack with the requested lease duration
-                ack_message = struct.pack(
-                    "!I B 4s I", xid, 5, socket.inet_aton(requested_ip), requested_lease
-                )
-                server_socket.sendto(ack_message, client_address)
-                logging.info(f"Assigned IP {requested_ip} to {client_address} (MAC: {lease_table[client_address][3]}) with lease duration {requested_lease} seconds")
+                    # DHCP Ack with the requested lease duration
+                    ack_message = struct.pack(
+                        "!I B 4s I", xid, 5, socket.inet_aton(requested_ip), requested_lease
+                    )
+                    server_socket.sendto(ack_message, client_address)
+                    logging.info(f"Assigned IP {requested_ip} to {client_address} (MAC: {lease[3]}) with lease duration {requested_lease} seconds")
+                    break
             else:
                 # DHCP Nak if the requested IP does not match
                 nak_message = struct.pack("!I B", xid, 6)
                 server_socket.sendto(nak_message, client_address)
-                logging.warning(f"Rejected IP request {requested_ip} from {client_address} (MAC: {lease_table.get(client_address, ('',))[3]})")
+                logging.warning(f"Rejected IP request {requested_ip} from {client_address} (MAC: {lease[3]})")
 
 # Starts the DHCP server
 def start_dhcp_server():
