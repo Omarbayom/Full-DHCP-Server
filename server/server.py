@@ -37,7 +37,9 @@ def add_lease(client_address, ip, lease_duration, xid, mac_address):
     Add or update a lease in the priority queue (min-heap) with expiry time.
     """
     expiry_time = time.time() + lease_duration
-    heapq.heappush(lease_table, (expiry_time, client_address, xid, mac_address, ip))
+    t1_time = expiry_time - (lease_duration // 2)  # Renewal time
+    t2_time = expiry_time - (lease_duration // 4)  # Rebinding time
+    heapq.heappush(lease_table, (expiry_time, t1_time, t2_time, client_address, xid, mac_address, ip))
 
 def remove_expired_leases():
     """
@@ -47,7 +49,7 @@ def remove_expired_leases():
     expired_clients = []
 
     while lease_table and lease_table[0][0] < current_time:
-        _, client_address, xid, mac_address, ip = heapq.heappop(lease_table)
+        _, _, _, client_address, xid, mac_address, ip = heapq.heappop(lease_table)
         expired_clients.append((client_address, xid, mac_address, ip))
     
     # Handle expired leases
@@ -85,7 +87,7 @@ def is_ip_in_use(ip):
         logging.error(f"Error checking IP {ip}: {e}")
         return False
 
-def build_dhcp_offer(xid, ip, mac_address):
+def build_dhcp_offer(xid, ip, mac_address, lease_duration):
     """
     Builds a DHCP Offer message with required options.
     """
@@ -99,6 +101,9 @@ def build_dhcp_offer(xid, ip, mac_address):
     offer_message += struct.pack("!BB", 1, 4) + SUBNET_MASK  # Option 1: Subnet Mask
     offer_message += struct.pack("!BB", 3, 4) + ROUTER  # Option 3: Router
     offer_message += struct.pack("!BB", 6, 4) + DNS_SERVER  # Option 6: DNS Server
+    offer_message += struct.pack("!BB", 58, 4) + struct.pack("!I", lease_duration // 2)  # Option 58: Renewal Time (T1)
+    offer_message += struct.pack("!BB", 59, 4) + struct.pack("!I", lease_duration // 4)  # Option 59: Rebinding Time (T2)
+    
     return offer_message
 
 def handle_client(message, client_address, server_socket):
@@ -154,7 +159,7 @@ def handle_client(message, client_address, server_socket):
                 add_lease(client_address, requested_ip, requested_lease, xid, mac_address)
                 logging.info(f"Offering Requested IP {requested_ip} to {client_address} (MAC: {mac_address}) with lease duration {requested_lease} seconds")
 
-                offer_message = build_dhcp_offer(xid, socket.inet_aton(requested_ip), mac_address)
+                offer_message = build_dhcp_offer(xid, socket.inet_aton(requested_ip), mac_address,requested_lease)
                 server_socket.sendto(offer_message, client_address)
             else:
                 logging.warning(f"Requested IP {requested_ip} is not available.")
@@ -176,7 +181,7 @@ def handle_client(message, client_address, server_socket):
         # Check lease table for the requested IP and assign it
         with lease_table_lock:
             for lease in lease_table:
-                if lease[4] == requested_ip and lease[1] == client_address:
+                if discover_cache[lease[3]]['requested_ip'] == requested_ip and lease[3] == client_address:
                     # Renew the lease with the requested lease time
                     add_lease(client_address, requested_ip, requested_lease, lease[2], lease[3])
 
@@ -209,18 +214,21 @@ def handle_client(message, client_address, server_socket):
             ip_pool.append(released_ip)
         logging.info(f"Released IP {released_ip} back to pool from {client_address}")
 
-# Start the server and handle leases, leases expiry, and requests.
-def run_server():
+def start_dhcp_server():
+    """
+    Starts the DHCP server and listens for client requests.
+    """
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    server_socket.bind(('0.0.0.0', 67))  # Bind to the DHCP server port (67)
-    
-    # Start lease expiry checker
-    lease_expiry_thread = threading.Thread(target=lease_expiry_checker, daemon=True)
-    lease_expiry_thread.start()
+    server_socket.bind(('', 67))  # DHCP server listens on port 67
+
+    # Start the lease expiry checker thread
+    threading.Thread(target=lease_expiry_checker, daemon=True).start()
+
+    logging.info("DHCP server is running...")
 
     while True:
         message, client_address = server_socket.recvfrom(1024)
-        handle_client(message, client_address, server_socket)
+        threading.Thread(target=handle_client, args=(message, client_address, server_socket), daemon=True).start()
 
 if __name__ == "__main__":
-    run_server()
+    start_dhcp_server()
