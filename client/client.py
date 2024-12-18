@@ -132,4 +132,4 @@ if __name__ == "__main__":
     requested_ip = "192.168.1.101"  # Example requested IP
     lease_duration = 15  
     mac_address = generate_unique_mac()
-    start_dhcp_client(mac_address=mac_address)
+    start_dhcp_client(mac_address=mac_address,requested_ip=requested_ip,lease_duration=lease_duration)

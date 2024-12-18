@@ -159,7 +159,7 @@ def handle_client(message, client_address, server_socket):
                 add_lease(client_address, requested_ip, requested_lease, xid, mac_address)
                 logging.info(f"Offering Requested IP {requested_ip} to {client_address} (MAC: {mac_address}) with lease duration {requested_lease} seconds")
 
-                offer_message = build_dhcp_offer(xid, socket.inet_aton(requested_ip), mac_address,requested_lease)
+                offer_message = build_dhcp_offer(xid, socket.inet_aton(requested_ip), mac_address, requested_lease)
                 server_socket.sendto(offer_message, client_address)
             else:
                 logging.warning(f"Requested IP {requested_ip} is not available.")
@@ -167,36 +167,49 @@ def handle_client(message, client_address, server_socket):
                 server_socket.sendto(nak_message, client_address)
 
     elif msg_type == 3:  # DHCP Request
-        requested_lease = lease_duration
         requested_ip = socket.inet_ntoa(message[5:9])
+        requested_lease = lease_duration
 
         # Retrieve saved Discover data from cache
         with discover_cache_lock:
             discover_data = discover_cache.get(client_address)
             if discover_data:
                 requested_ip = discover_data['requested_ip'] or requested_ip
-                requested_lease = discover_data['requested_lease'] or requested_lease
+                requested_lease = discover_data['requested_lease'] or lease_duration
                 logging.info(f"Received DHCP Request from {client_address} for IP {requested_ip} with lease duration {requested_lease} seconds")
 
-        # Check lease table for the requested IP and assign it
+        # Check if this is a renewal (T1) or rebinding (T2)
         with lease_table_lock:
             for lease in lease_table:
-                if discover_cache[lease[3]]['requested_ip'] == requested_ip and lease[3] == client_address:
-                    # Renew the lease with the requested lease time
-                    add_lease(client_address, requested_ip, requested_lease, lease[2], lease[3])
+                expiry_time, t1_time, t2_time, lease_address, _, mac, lease_ip = lease
 
-                    # Send DHCP Ack with the requested lease duration
-                    ack_message = struct.pack(
-                        "!I B 4s I", xid, 5, socket.inet_aton(requested_ip), requested_lease
-                    )
-                    server_socket.sendto(ack_message, client_address)
-                    logging.info(f"Assigned IP {requested_ip} to {client_address} (MAC: {lease[3]}) with lease duration {requested_lease} seconds")
-                    break
-            else:
-                # DHCP Nak if the requested IP does not match
-                nak_message = struct.pack("!I B", xid, 6)
-                server_socket.sendto(nak_message, client_address)
-                logging.warning(f"Rejected IP request {requested_ip} from {client_address} (MAC: {lease[3]})")
+                if lease_address == client_address and lease_ip == requested_ip:
+                    current_time = time.time()
+
+                    if current_time < t1_time:  # Renewal Phase (T1)
+                        logging.info(f"Renewing lease for IP {requested_ip} for {client_address}.")
+                        add_lease(client_address, requested_ip, requested_lease, xid, mac)
+
+                        ack_message = struct.pack(
+                            "!I B 4s I", xid, 5, socket.inet_aton(requested_ip), requested_lease
+                        )
+                        server_socket.sendto(ack_message, client_address)
+                        return
+
+                    elif current_time >= t1_time and current_time < t2_time:  # Rebinding Phase (T2)
+                        logging.info(f"Rebinding lease for IP {requested_ip} for {client_address}.")
+                        add_lease(client_address, requested_ip, requested_lease, xid, mac)
+
+                        ack_message = struct.pack(
+                            "!I B 4s I", xid, 5, socket.inet_aton(requested_ip), requested_lease
+                        )
+                        server_socket.sendto(ack_message, client_address)
+                        return
+
+        # If no valid lease exists or expired lease, handle as a new request
+        nak_message = struct.pack("!I B", xid, 6)  # DHCP NAK (Not Acknowledged)
+        server_socket.sendto(nak_message, client_address)
+        logging.warning(f"Rejected renewal/rebinding for IP {requested_ip} from {client_address}")
 
     elif msg_type == 4:  # DHCP Decline (optional)
         logging.info(f"Received DHCP Decline from {client_address}. Releasing IP.")
