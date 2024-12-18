@@ -2,8 +2,7 @@ import socket
 import struct
 import threading
 import time
-import subprocess
-import platform
+import random
 import logging
 from collections import deque
 import heapq
@@ -27,6 +26,11 @@ discover_cache_lock = threading.Lock()
 # Convert IP pool to a deque for efficient IP allocation
 ip_pool = deque(ip_pool)
 
+# Define DHCP Options
+SUBNET_MASK = socket.inet_aton("255.255.255.0")  # Example subnet mask
+ROUTER = socket.inet_aton("192.168.1.1")  # Example router
+DNS_SERVER = socket.inet_aton("8.8.8.8")  # Example DNS server
+SERVER_IDENTIFIER = socket.inet_aton(server_ip)  # DHCP Server IP Address
 
 def add_lease(client_address, ip, lease_duration, xid, mac_address):
     """
@@ -34,7 +38,6 @@ def add_lease(client_address, ip, lease_duration, xid, mac_address):
     """
     expiry_time = time.time() + lease_duration
     heapq.heappush(lease_table, (expiry_time, client_address, xid, mac_address, ip))
-
 
 def remove_expired_leases():
     """
@@ -61,7 +64,6 @@ def remove_expired_leases():
                     logging.info(f"Removed client {client_address} (MAC: {mac_address}) from discover_cache")
                     break
 
-
 def lease_expiry_checker():
     """
     Periodically checks for expired leases and removes them.
@@ -69,7 +71,6 @@ def lease_expiry_checker():
     while True:
         remove_expired_leases()
         time.sleep(1)  # Check every second
-
 
 def is_ip_in_use(ip):
     """
@@ -80,11 +81,25 @@ def is_ip_in_use(ip):
             return True
         else:
             return False
-
     except Exception as e:
         logging.error(f"Error checking IP {ip}: {e}")
         return False
 
+def build_dhcp_offer(xid, ip, mac_address):
+    """
+    Builds a DHCP Offer message with required options.
+    """
+    offer_message = struct.pack(
+        "!I B 4s 16s", xid, 2, ip, bytes.fromhex(mac_address.replace(":", ""))
+    )
+    
+    # DHCP Options (Message Type = 2, Server Identifier, Subnet Mask, Router, DNS Server)
+    offer_message += struct.pack("!BB", 53, 1) + struct.pack("B", 2)  # Option 53: Message Type = 2 (Offer)
+    offer_message += struct.pack("!BB", 54, 4) + SERVER_IDENTIFIER  # Option 54: Server Identifier
+    offer_message += struct.pack("!BB", 1, 4) + SUBNET_MASK  # Option 1: Subnet Mask
+    offer_message += struct.pack("!BB", 3, 4) + ROUTER  # Option 3: Router
+    offer_message += struct.pack("!BB", 6, 4) + DNS_SERVER  # Option 6: DNS Server
+    return offer_message
 
 def handle_client(message, client_address, server_socket):
     """
@@ -139,11 +154,8 @@ def handle_client(message, client_address, server_socket):
                 add_lease(client_address, requested_ip, requested_lease, xid, mac_address)
                 logging.info(f"Offering Requested IP {requested_ip} to {client_address} (MAC: {mac_address}) with lease duration {requested_lease} seconds")
 
-                offer_message = struct.pack(
-                    "!I B 4s 16s", xid, 2, socket.inet_aton(requested_ip), bytes.fromhex(mac_address.replace(":", ""))
-                )
-                offer_message_with_option = offer_message + struct.pack("!BB", 53, 1) + struct.pack("B", 2)  # Option 53: Message Type = 2 (Offer)
-                server_socket.sendto(offer_message_with_option, client_address)
+                offer_message = build_dhcp_offer(xid, socket.inet_aton(requested_ip), mac_address)
+                server_socket.sendto(offer_message, client_address)
             else:
                 logging.warning(f"Requested IP {requested_ip} is not available.")
                 nak_message = struct.pack("!I B", xid, 6)  # DHCP NAK (Not Acknowledged)
@@ -181,25 +193,34 @@ def handle_client(message, client_address, server_socket):
                 server_socket.sendto(nak_message, client_address)
                 logging.warning(f"Rejected IP request {requested_ip} from {client_address} (MAC: {lease[3]})")
 
+    elif msg_type == 4:  # DHCP Decline (optional)
+        logging.info(f"Received DHCP Decline from {client_address}. Releasing IP.")
+        # Handle DHCP Decline (Release IP address)
+        declined_ip = socket.inet_ntoa(message[5:9])
+        with ip_pool_lock:
+            ip_pool.append(declined_ip)
+        logging.info(f"Released IP {declined_ip} back to pool from {client_address}")
 
-def start_dhcp_server():
-    """
-    Starts the DHCP server, listens for incoming messages, and handles them.
-    """
-    # Create a UDP socket
+    elif msg_type == 7:  # DHCP Release
+        logging.info(f"Received DHCP Release from {client_address}. Releasing IP.")
+        # Handle DHCP Release (Return IP to pool)
+        released_ip = socket.inet_ntoa(message[5:9])
+        with ip_pool_lock:
+            ip_pool.append(released_ip)
+        logging.info(f"Released IP {released_ip} back to pool from {client_address}")
+
+# Start the server and handle leases, leases expiry, and requests.
+def run_server():
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    server_socket.bind((server_ip, 67))  # DHCP server listens on port 67
-    logging.info(f"DHCP Server started on {server_ip}, waiting for clients...")
-
-    # Start the lease expiry checker in a separate thread
-    threading.Thread(target=lease_expiry_checker, daemon=True).start()
+    server_socket.bind(('0.0.0.0', 67))  # Bind to the DHCP server port (67)
+    
+    # Start lease expiry checker
+    lease_expiry_thread = threading.Thread(target=lease_expiry_checker, daemon=True)
+    lease_expiry_thread.start()
 
     while True:
-        # Receive DHCP messages
         message, client_address = server_socket.recvfrom(1024)
-        threading.Thread(target=handle_client, args=(message, client_address, server_socket)).start()
-
+        handle_client(message, client_address, server_socket)
 
 if __name__ == "__main__":
-    start_dhcp_server()
+    run_server()
