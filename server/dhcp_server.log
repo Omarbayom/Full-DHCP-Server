@@ -1,0 +1,22 @@
+2024-12-18 21:44:08,722 - INFO - DHCP Server started on 192.168.1.10, waiting for clients...
+2024-12-18 21:44:25,454 - INFO - Received DHCP Discover from ('192.168.1.10', 36249)
+2024-12-18 21:44:25,455 - INFO - Client MAC Address: 00:1a:2b:1c:d9:bb
+2024-12-18 21:44:25,455 - INFO - Requested IP: 192.168.1.101
+2024-12-18 21:44:25,455 - INFO - Requested Lease Duration: 15 seconds
+2024-12-18 21:44:25,455 - INFO - Offering Requested IP 192.168.1.101 to ('192.168.1.10', 36249) (MAC: 00:1a:2b:1c:d9:bb) with lease duration 15 seconds
+2024-12-18 21:44:25,456 - INFO - Received DHCP Request from ('192.168.1.10', 36249) for IP 192.168.1.101 with lease duration 15 seconds
+2024-12-18 21:44:25,457 - INFO - Assigned IP 192.168.1.101 to ('192.168.1.10', 36249) (MAC: 00:1a:2b:1c:d9:bb) with lease duration 15 seconds
+2024-12-18 21:44:28,937 - INFO - Received DHCP Discover from ('192.168.1.10', 24347)
+2024-12-18 21:44:28,938 - INFO - Client MAC Address: 00:1a:2b:38:79:ef
+2024-12-18 21:44:28,938 - INFO - Requested IP: 192.168.1.101
+2024-12-18 21:44:28,938 - INFO - Requested Lease Duration: 15 seconds
+2024-12-18 21:44:28,938 - WARNING - Requested IP 192.168.1.101 is not available.
+2024-12-18 21:44:37,981 - INFO - Received DHCP Discover from ('192.168.1.10', 60611)
+2024-12-18 21:44:37,981 - INFO - Client MAC Address: 00:1a:2b:d7:70:43
+2024-12-18 21:44:37,982 - ERROR - Error checking IP None: name 'platform' is not defined
+2024-12-18 21:44:37,983 - INFO - IP None is already in use. Selecting another IP.
+2024-12-18 21:44:37,983 - INFO - Offering Requested IP 192.168.1.100 to ('192.168.1.10', 60611) (MAC: 00:1a:2b:d7:70:43) with lease duration 3600 seconds
+2024-12-18 21:44:37,984 - INFO - Received DHCP Request from ('192.168.1.10', 60611) for IP 192.168.1.100 with lease duration 3600 seconds
+2024-12-18 21:44:37,984 - INFO - Assigned IP 192.168.1.100 to ('192.168.1.10', 60611) (MAC: 00:1a:2b:d7:70:43) with lease duration 3600 seconds
+2024-12-18 21:44:43,726 - INFO - Lease expired: Released IP 192.168.1.101 for client ('192.168.1.10', 36249) (MAC: 00:1a:2b:1c:d9:bb) (XID: 3931878236)
+2024-12-18 21:44:43,726 - INFO - Removed client ('192.168.1.10', 36249) (MAC: 00:1a:2b:1c:d9:bb) from discover_cache
