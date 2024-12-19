@@ -9,9 +9,7 @@ BUFFER_SIZE = 1024
 ip_pool = [
     "192.168.1.100",
     "192.168.1.101",
-    "192.168.1.102",
-    "192.168.1.103",  # Added more IPs for flexibility
-    "192.168.1.104"
+    "192.168.1.102"
 ]
 
 # Lease duration (time in seconds that the client can use the assigned IP address)

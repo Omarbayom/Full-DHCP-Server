@@ -55,15 +55,10 @@ def lease_expiry_checker():
 # Function to check if an IP address is in use (ping probe)
 def is_ip_in_use(ip):
     try:
-        if platform.system().lower() == 'windows':
-            response = subprocess.run(
-                ['ping', '-n', '1', '-w', '1000', ip], stdout=subprocess.PIPE, stderr=subprocess.PIPE
-            )
-        else:  # Assume Linux/Unix
-            response = subprocess.run(
-                ['ping', '-c', '1', '-w', '1', ip], stdout=subprocess.PIPE, stderr=subprocess.PIPE
-            )
-        return response.returncode == 0  # 0 means success
+        if ip not in ip_pool:
+            return True
+        else:     
+            return False  # 0 means success
     except Exception as e:
         logging.error(f"Error checking IP {ip}: {e}")
         return False
@@ -83,6 +78,11 @@ def handle_client(message, client_address, server_socket):
         options = message[11:]  # DHCP options start after the MAC address
         requested_ip = None
         requested_lease = lease_duration
+        if not ip_pool:
+            logging.warning("IP pool is empty. Cannot assign IP to client.")
+            nak_message = struct.pack("!I B", xid, 6)  # DHCP NAK (Not Acknowledged)
+            server_socket.sendto(nak_message, client_address)
+            return
 
         i = 0
         while i + 1 < len(options):
@@ -97,10 +97,14 @@ def handle_client(message, client_address, server_socket):
                 logging.info(f"Requested Lease Duration: {requested_lease} seconds")
             i += 2 + option_length
 
-        if not requested_ip and not is_ip_in_use(requested_ip):
-            logging.info(f"IP {requested_ip} is already in use. Selecting another IP.")
+        if requested_ip and requested_ip not in ip_pool:
+            logging.warning(f"Requested IP {requested_ip} is not available.")
+            nak_message = struct.pack("!I B", xid, 6)
+            server_socket.sendto(nak_message, client_address)
+            return
+        
+        if not requested_ip:
             requested_ip = ip_pool[0]
-
         # Save the Discover message options for later use in Request
         with discover_cache_lock:
             discover_cache[client_address] = {
@@ -158,6 +162,46 @@ def handle_client(message, client_address, server_socket):
                 nak_message = struct.pack("!I B", xid, 6)
                 server_socket.sendto(nak_message, client_address)
                 logging.warning(f"Rejected IP request {requested_ip} from {client_address} (MAC: {lease_table.get(client_address, ('',))[3]})")
+    elif msg_type == 4:  # DHCP Decline
+        declined_ip = socket.inet_ntoa(message[5:9])
+        logging.info(f"Received DHCP Decline for IP {declined_ip} from {client_address}")
+        
+        with lease_table_lock:
+            # Remove the declined IP from lease table
+            for client, lease in list(lease_table.items()):
+                if lease[0] == declined_ip:
+                    del lease_table[client]
+                    logging.info(f"Removed declined IP {declined_ip} from lease table")
+        
+        # Return the IP to the pool
+        with ip_pool_lock:
+            if declined_ip not in ip_pool:
+                ip_pool.append(declined_ip)
+                logging.info(f"Returned IP {declined_ip} to the pool")
+        
+        # Remove the client from discover_cache if applicable
+        with discover_cache_lock:
+            for key in list(discover_cache.keys()):
+                if discover_cache[key].get('requested_ip') == declined_ip:
+                    del discover_cache[key]
+                    logging.info(f"Removed entry with declined IP {declined_ip} from discover_cache")
+                    break
+
+    elif msg_type == 7:  # DHCP Release
+        released_ip = socket.inet_ntoa(message[5:9])
+        logging.info(f"Received DHCP Release for IP {released_ip} from {client_address}")
+
+        with lease_table_lock:
+            if client_address in lease_table and lease_table[client_address][0] == released_ip:
+                del lease_table[client_address]
+                logging.info(f"Released IP {released_ip} from lease table for client {client_address}")
+        
+        # Return the IP to the pool
+        with ip_pool_lock:
+            if released_ip not in ip_pool:
+                ip_pool.append(released_ip)
+                logging.info(f"Returned released IP {released_ip} to the pool")
+
 
 # Starts the DHCP server
 def start_dhcp_server():
