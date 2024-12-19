@@ -1,0 +1,38 @@
+2024-12-19 18:49:35,020 - INFO - DHCP Server started on 192.168.1.10, waiting for clients...
+2024-12-19 18:49:41,710 - INFO - Received DHCP Discover from ('192.168.1.10', 31400)
+2024-12-19 18:49:41,710 - INFO - Client MAC Address: 00:1a:2b:99:6f:b1
+2024-12-19 18:49:41,711 - INFO - Requested IP: 192.168.1.101
+2024-12-19 18:49:41,711 - INFO - Requested Lease Duration: 15 seconds
+2024-12-19 18:49:41,712 - INFO - Offering Requested IP 192.168.1.101 to ('192.168.1.10', 31400) (MAC: 00:1a:2b:99:6f:b1) with lease duration 15 seconds
+2024-12-19 18:49:41,712 - INFO - Received DHCP Request from ('192.168.1.10', 31400) for IP 192.168.1.101 with lease duration 15 seconds
+2024-12-19 18:49:41,712 - INFO - Assigned IP 192.168.1.101 to ('192.168.1.10', 31400) (MAC: 00:1a:2b:99:6f:b1) with lease duration 15 seconds
+2024-12-19 18:49:45,077 - INFO - Received DHCP Discover from ('192.168.1.10', 28602)
+2024-12-19 18:49:45,077 - INFO - Client MAC Address: 00:1a:2b:b5:d1:17
+2024-12-19 18:49:45,077 - INFO - Requested IP: 192.168.1.101
+2024-12-19 18:49:45,077 - INFO - Requested Lease Duration: 15 seconds
+2024-12-19 18:49:45,078 - WARNING - Requested IP 192.168.1.101 is not available.
+2024-12-19 18:49:45,078 - INFO - Offering Requested IP 192.168.1.100 to ('192.168.1.10', 28602) (MAC: 00:1a:2b:b5:d1:17) with lease duration 15 seconds
+2024-12-19 18:49:45,079 - INFO - Received DHCP Decline for IP 192.168.1.100 from ('192.168.1.10', 28602)
+2024-12-19 18:49:45,079 - INFO - Updated lease expiry for IP 192.168.1.100 to current time
+2024-12-19 18:49:46,026 - INFO - Lease expired: Released IP 192.168.1.100 for client ('192.168.1.10', 28602) (MAC: 00:1a:2b:b5:d1:17) (XID: 3968608091)
+2024-12-19 18:49:46,026 - INFO - Removed client ('192.168.1.10', 28602) (MAC: 00:1a:2b:b5:d1:17) from discover_cache
+2024-12-19 18:49:57,031 - INFO - Lease expired: Released IP 192.168.1.101 for client ('192.168.1.10', 31400) (MAC: 00:1a:2b:99:6f:b1) (XID: 837686152)
+2024-12-19 18:49:57,031 - INFO - Removed client ('192.168.1.10', 31400) (MAC: 00:1a:2b:99:6f:b1) from discover_cache
+2024-12-19 18:50:21,776 - INFO - DHCP Server started on 192.168.1.10, waiting for clients...
+2024-12-19 18:50:34,219 - INFO - Received DHCP Discover from ('192.168.1.10', 48413)
+2024-12-19 18:50:34,220 - INFO - Client MAC Address: 00:1a:2b:ed:06:63
+2024-12-19 18:50:34,220 - INFO - Requested IP: 192.168.1.101
+2024-12-19 18:50:34,220 - INFO - Requested Lease Duration: 15 seconds
+2024-12-19 18:50:34,220 - INFO - Offering Requested IP 192.168.1.101 to ('192.168.1.10', 48413) (MAC: 00:1a:2b:ed:06:63) with lease duration 15 seconds
+2024-12-19 18:50:34,221 - INFO - Received DHCP Request from ('192.168.1.10', 48413) for IP 192.168.1.101 with lease duration 15 seconds
+2024-12-19 18:50:34,221 - INFO - Assigned IP 192.168.1.101 to ('192.168.1.10', 48413) (MAC: 00:1a:2b:ed:06:63) with lease duration 15 seconds
+2024-12-19 18:50:36,136 - INFO - Received DHCP Discover from ('192.168.1.10', 55402)
+2024-12-19 18:50:36,137 - INFO - Client MAC Address: 00:1a:2b:79:39:8f
+2024-12-19 18:50:36,137 - INFO - Requested IP: 192.168.1.101
+2024-12-19 18:50:36,137 - INFO - Requested Lease Duration: 15 seconds
+2024-12-19 18:50:36,138 - WARNING - Requested IP 192.168.1.101 is not available.
+2024-12-19 18:50:36,138 - INFO - Offering Requested IP 192.168.1.100 to ('192.168.1.10', 55402) (MAC: 00:1a:2b:79:39:8f) with lease duration 15 seconds
+2024-12-19 18:50:36,138 - INFO - Received DHCP Decline for IP 192.168.1.100 from ('192.168.1.10', 55402)
+2024-12-19 18:50:36,139 - INFO - Updated lease expiry for IP 192.168.1.100 to current time
+2024-12-19 18:50:36,783 - INFO - Lease expired: Released IP 192.168.1.100 for client ('192.168.1.10', 55402) (MAC: 00:1a:2b:79:39:8f) (XID: 2713956128)
+2024-12-19 18:50:36,783 - INFO - Removed client ('192.168.1.10', 55402) (MAC: 00:1a:2b:79:39:8f) from discover_cache

@@ -69,6 +69,7 @@ def send_dhcp_request_or_decline(client_socket, xid, mac_address, server_identif
     # Send the message to the server
     client_socket.sendto(message, (server_address[0], 67))
     print(f"Sent DHCP {action} for IP {offered_ip} to server {server_address}")
+    return action
 
 # Send DHCP Release message to the server
 def send_dhcp_release(client_socket, xid, mac_address, server_identifier, leased_ip,server_address):
@@ -122,7 +123,9 @@ def start_dhcp_client(mac_address=None, requested_ip=None, lease_duration=None):
                 print(f"Received DHCP Offer: {offered_ip} from {server_address}")
 
                 # Send DHCP Request or Decline
-                send_dhcp_request_or_decline(client_socket, xid, mac_address, server_identifier, offered_ip, server_address, requested_ip)
+                action=send_dhcp_request_or_decline(client_socket, xid, mac_address, server_identifier, offered_ip, server_address, requested_ip)
+                if action == "Decline":
+                    break
 
             elif msg_type == 5:  # DHCP Ack
                 lease_duration = struct.unpack("!I", message[9:13])[0]
@@ -130,10 +133,10 @@ def start_dhcp_client(mac_address=None, requested_ip=None, lease_duration=None):
                 print(f"Received DHCP Ack: Lease successful! Lease duration: {lease_duration} seconds for IP {leased_ip}")
 
                 # Simulate using the lease for some time
-                time.sleep(5)
+                # time.sleep(5)
 
-                # Send DHCP Release
-                send_dhcp_release(client_socket, xid, mac_address, server_identifier, leased_ip,server_address)
+                # # Send DHCP Release
+                # send_dhcp_release(client_socket, xid, mac_address, server_identifier, leased_ip,server_address)
                 break
 
             elif msg_type == 6:  # DHCP Nak

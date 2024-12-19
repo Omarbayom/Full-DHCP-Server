@@ -152,29 +152,18 @@ def handle_client(message, client_address, server_socket):
                 logging.warning(f"Rejected IP request {requested_ip} from {client_address} (MAC: {lease_table.get(client_address, ('',))[3]})")
                 
     elif msg_type == 4:  # DHCP Decline
-        declined_ip = socket.inet_ntoa(message[5:9])
+        xid, msg_type, mac_bytes, server_identifier, leased_ip = struct.unpack("!I B 16s 4s 4s", message[:29])
+        declined_ip = socket.inet_ntoa(leased_ip)
         logging.info(f"Received DHCP Decline for IP {declined_ip} from {client_address}")
-        
-        with lease_table_lock:
-            # Remove the declined IP from lease table
-            for client, lease in list(lease_table.items()):
-                if lease[0] == declined_ip:
-                    del lease_table[client]
-                    logging.info(f"Removed declined IP {declined_ip} from lease table")
-        
-        # Return the IP to the pool
-        with ip_pool_lock:
-            if declined_ip not in ip_pool:
-                ip_pool.append(declined_ip)
-                logging.info(f"Returned IP {declined_ip} to the pool")
-        
-        # Remove the client from discover_cache if applicable
-        with discover_cache_lock:
-            for key in list(discover_cache.keys()):
-                if discover_cache[key].get('requested_ip') == declined_ip:
-                    del discover_cache[key]
-                    logging.info(f"Removed entry with declined IP {declined_ip} from discover_cache")
-                    break
+        if client_address in lease_table:
+            lease_record = lease_table[client_address]
+            lease_record = list(lease_record)
+            if lease_record[0] == declined_ip:
+                # Update the expiry time to the current time
+                lease_record[1] = time.time()
+                lease_record = tuple(lease_record)
+                lease_table[client_address] = lease_record  # Update the record in the table
+                logging.info(f"Updated lease expiry for IP {declined_ip} to current time")
 
     elif msg_type == 7:  # DHCP Release
         xid, msg_type, mac_bytes, server_identifier, leased_ip = struct.unpack("!I B 16s 4s 4s", message[:29])
