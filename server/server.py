@@ -52,16 +52,6 @@ def lease_expiry_checker():
                             break  # Exit loop once the entry is found and removed
         time.sleep(5)  # Check every 5 seconds
 
-# Function to check if an IP address is in use (ping probe)
-def is_ip_in_use(ip):
-    try:
-        if ip not in ip_pool:
-            return True
-        else:     
-            return False  # 0 means success
-    except Exception as e:
-        logging.error(f"Error checking IP {ip}: {e}")
-        return False
 
 # Handles incoming DHCP messages from clients
 def handle_client(message, client_address, server_socket):
