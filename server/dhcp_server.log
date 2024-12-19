@@ -58,3 +58,17 @@
 2024-12-19 01:21:52,996 - INFO - Offering Requested IP 192.168.1.100 to ('192.168.1.10', 63664) (MAC: 00:1a:2b:27:f2:19) with lease duration 15 seconds
 2024-12-19 01:21:52,997 - INFO - Received DHCP Request from ('192.168.1.10', 63664) for IP 192.168.1.100 with lease duration 15 seconds
 2024-12-19 01:21:52,997 - INFO - Renewing lease for IP 192.168.1.100 for ('192.168.1.10', 63664).
+2024-12-19 15:03:43,865 - INFO - DHCP Server started on 192.168.1.10, waiting for clients...
+2024-12-19 15:04:09,007 - INFO - DHCP Server started on 192.168.1.10, waiting for clients...
+2024-12-19 15:04:24,382 - INFO - Received DHCP Discover from ('192.168.1.10', 25335)
+2024-12-19 15:04:24,382 - INFO - Client MAC Address: 00:1a:2b:de:c6:3f
+2024-12-19 15:04:24,382 - INFO - Requested IP: 192.168.1.101
+2024-12-19 15:04:24,382 - INFO - Requested Lease Duration: 15 seconds
+2024-12-19 15:04:24,382 - INFO - Offering Requested IP 192.168.1.101 to ('192.168.1.10', 25335) (MAC: 00:1a:2b:de:c6:3f) with lease duration 15 seconds
+2024-12-19 15:04:24,384 - INFO - Received DHCP Request from ('192.168.1.10', 25335) for IP 192.168.1.101 with lease duration 15 seconds
+2024-12-19 15:04:24,385 - INFO - Assigned IP 192.168.1.101 to ('192.168.1.10', 25335) (MAC: 00:1a:2b:de:c6:3f) with lease duration 15 seconds
+2024-12-19 15:04:27,270 - INFO - Received DHCP Discover from ('192.168.1.10', 54498)
+2024-12-19 15:04:27,270 - INFO - Client MAC Address: 00:1a:2b:1c:43:4a
+2024-12-19 15:04:27,271 - INFO - Requested IP: 192.168.1.101
+2024-12-19 15:04:27,271 - INFO - Requested Lease Duration: 15 seconds
+2024-12-19 15:04:27,271 - WARNING - Requested IP 192.168.1.101 is not available.
