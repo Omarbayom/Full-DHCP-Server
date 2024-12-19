@@ -46,32 +46,51 @@ def send_dhcp_discover(client_socket, xid, mac_address, requested_ip=None, lease
     client_socket.sendto(discover_message, ("255.255.255.255", 67))
     print(f"Sent DHCP Discover from MAC {mac_address} with options: IP {requested_ip}, Lease Duration {lease_duration}...")
 
-# Send DHCP Request message to the server
-def send_dhcp_request(client_socket, xid, mac_address, server_identifier, offered_ip,server_address):
-    msg_type = 3  # DHCP Request
+# Send DHCP Request or Decline message to the server
+def send_dhcp_request_or_decline(client_socket, xid, mac_address, server_identifier, offered_ip, server_address, requested_ip):
+    if (requested_ip and offered_ip == requested_ip) or not requested_ip:
+        msg_type = 3  # DHCP Request
+        action = "Request"
+    else:
+        msg_type = 4  # DHCP Decline
+        action = "Decline"
+
     mac_bytes = bytes.fromhex(mac_address.replace(":", ""))  # Convert MAC address to bytes
 
     # Pad MAC address to 16 bytes (if shorter)
     mac_bytes = mac_bytes.ljust(16, b'\x00')
 
-    # Start building the DHCP Request message
-    request_message = struct.pack("!I B 16s 4s 4s", xid, msg_type, mac_bytes, socket.inet_aton(server_identifier), socket.inet_aton(offered_ip))
+    # Build the DHCP Request or Decline message
+    message = struct.pack("!I B 16s 4s 4s", xid, msg_type, mac_bytes, socket.inet_aton(server_identifier), socket.inet_aton(offered_ip))
 
     # Append end of options field (Option 255)
-    request_message += struct.pack("!B", 255)
+    message += struct.pack("!B", 255)
 
     # Send the message to the server
-    client_socket.sendto(request_message, (str(server_address[0]), 67))
-    print(f"Sent DHCP Request for IP {offered_ip} to server {server_address}")
+    client_socket.sendto(message, (server_address[0], 67))
+    print(f"Sent DHCP {action} for IP {offered_ip} to server {server_address}")
+
+# Send DHCP Release message to the server
+def send_dhcp_release(client_socket, xid, mac_address, server_identifier, leased_ip,server_address):
+    msg_type = 7  # DHCP Release
+    mac_bytes = bytes.fromhex(mac_address.replace(":", ""))  # Convert MAC address to bytes
+
+    # Pad MAC address to 16 bytes (if shorter)
+    mac_bytes = mac_bytes.ljust(16, b'\x00')
+
+    # Build the DHCP Release message
+    release_message = struct.pack("!I B 16s 4s 4s", xid, msg_type, mac_bytes, socket.inet_aton(server_identifier), socket.inet_aton(leased_ip))
+
+    # Append end of options field (Option 255)
+    release_message += struct.pack("!B", 255)
+
+    # Send the message to the server
+    client_socket.sendto(release_message, (server_address[0], 67))
+    print(f"Sent DHCP Release for IP {leased_ip} to server {server_address}")
 
 # Start the DHCP client
-def start_dhcp_client(mac_address=None,requested_ip=None,lease_duration=None):
-    # Generate unique identifiers for the client
-
-
+def start_dhcp_client(mac_address=None, requested_ip=None, lease_duration=None):
     xid = generate_transaction_id()
-
-    # Bind to a unique port for each instance
     port = random.randint(10000, 65000)
 
     # Create a UDP socket
@@ -83,9 +102,6 @@ def start_dhcp_client(mac_address=None,requested_ip=None,lease_duration=None):
     client_socket.settimeout(10)  # Timeout in seconds
 
     print(f"Starting DHCP client on port {port} with MAC {mac_address} and XID {xid}...")
-
-    # Define optional DHCP Discover parameters (requested IP and lease duration)
-
 
     # Send DHCP Discover with options
     send_dhcp_discover(client_socket, xid, mac_address, requested_ip, lease_duration)
@@ -105,13 +121,19 @@ def start_dhcp_client(mac_address=None,requested_ip=None,lease_duration=None):
                 server_identifier = socket.inet_ntoa(message[9:13])
                 print(f"Received DHCP Offer: {offered_ip} from {server_address}")
 
-                # Send DHCP Request
-                send_dhcp_request(client_socket, xid, mac_address, server_identifier, offered_ip,server_address)
+                # Send DHCP Request or Decline
+                send_dhcp_request_or_decline(client_socket, xid, mac_address, server_identifier, offered_ip, server_address, requested_ip)
 
             elif msg_type == 5:  # DHCP Ack
-                # Extract lease duration from DHCP Ack
                 lease_duration = struct.unpack("!I", message[9:13])[0]
-                print(f"Received DHCP Ack: Lease successful! Lease duration: {lease_duration} seconds")
+                leased_ip = socket.inet_ntoa(message[5:9])
+                print(f"Received DHCP Ack: Lease successful! Lease duration: {lease_duration} seconds for IP {leased_ip}")
+
+                # Simulate using the lease for some time
+                time.sleep(5)
+
+                # Send DHCP Release
+                send_dhcp_release(client_socket, xid, mac_address, server_identifier, leased_ip,server_address)
                 break
 
             elif msg_type == 6:  # DHCP Nak
@@ -122,14 +144,13 @@ def start_dhcp_client(mac_address=None,requested_ip=None,lease_duration=None):
 
     except socket.timeout:
         print("Timeout: No response from DHCP server.")
-        # Optionally retry or exit
         print("Retry sending DHCP Discover...")
-        start_dhcp_client(mac_address=mac_address,requested_ip=requested_ip,lease_duration=lease_duration)
+        start_dhcp_client(mac_address=mac_address, requested_ip=requested_ip, lease_duration=lease_duration)
     finally:
         client_socket.close()
 
 if __name__ == "__main__":
     requested_ip = "192.168.1.101"  # Example requested IP
-    lease_duration = 15  
+    lease_duration = 15  # Example lease duration
     mac_address = generate_unique_mac()
-    start_dhcp_client(mac_address=mac_address)
+    start_dhcp_client(mac_address=mac_address, requested_ip=requested_ip, lease_duration=lease_duration)

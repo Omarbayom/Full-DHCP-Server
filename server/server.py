@@ -50,7 +50,7 @@ def lease_expiry_checker():
                             del discover_cache[key]
                             logging.info(f"Removed client {client_address} (MAC: {mac_address}) from discover_cache")
                             break  # Exit loop once the entry is found and removed
-        time.sleep(5)  # Check every 5 seconds
+        time.sleep(1)  # Check every 5 seconds
 
 
 # Handles incoming DHCP messages from clients
@@ -89,9 +89,7 @@ def handle_client(message, client_address, server_socket):
 
         if requested_ip and requested_ip not in ip_pool:
             logging.warning(f"Requested IP {requested_ip} is not available.")
-            nak_message = struct.pack("!I B", xid, 6)
-            server_socket.sendto(nak_message, client_address)
-            return
+            requested_ip = ip_pool[0]
         
         if not requested_ip:
             requested_ip = ip_pool[0]
@@ -152,6 +150,7 @@ def handle_client(message, client_address, server_socket):
                 nak_message = struct.pack("!I B", xid, 6)
                 server_socket.sendto(nak_message, client_address)
                 logging.warning(f"Rejected IP request {requested_ip} from {client_address} (MAC: {lease_table.get(client_address, ('',))[3]})")
+                
     elif msg_type == 4:  # DHCP Decline
         declined_ip = socket.inet_ntoa(message[5:9])
         logging.info(f"Received DHCP Decline for IP {declined_ip} from {client_address}")
@@ -178,19 +177,19 @@ def handle_client(message, client_address, server_socket):
                     break
 
     elif msg_type == 7:  # DHCP Release
-        released_ip = socket.inet_ntoa(message[5:9])
+        xid, msg_type, mac_bytes, server_identifier, leased_ip = struct.unpack("!I B 16s 4s 4s", message[:29])
+        released_ip = socket.inet_ntoa(leased_ip)
         logging.info(f"Received DHCP Release for IP {released_ip} from {client_address}")
+        if client_address in lease_table:
+            lease_record = lease_table[client_address]
+            lease_record = list(lease_record)
+            if lease_record[0] == released_ip:
+                # Update the expiry time to the current time
+                lease_record[1] = time.time()
+                lease_record = tuple(lease_record)
+                lease_table[client_address] = lease_record  # Update the record in the table
+                logging.info(f"Updated lease expiry for IP {released_ip} to current time")
 
-        with lease_table_lock:
-            if client_address in lease_table and lease_table[client_address][0] == released_ip:
-                del lease_table[client_address]
-                logging.info(f"Released IP {released_ip} from lease table for client {client_address}")
-        
-        # Return the IP to the pool
-        with ip_pool_lock:
-            if released_ip not in ip_pool:
-                ip_pool.append(released_ip)
-                logging.info(f"Returned released IP {released_ip} to the pool")
 
 
 # Starts the DHCP server
