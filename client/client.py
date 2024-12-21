@@ -4,6 +4,8 @@ import time
 import random
 
 # Function to generate a unique MAC address
+
+
 def generate_unique_mac():
     """Generate a unique MAC address."""
     mac = [0x00, 0x1A, 0x2B, random.randint(0x00, 0xFF),
@@ -11,14 +13,19 @@ def generate_unique_mac():
     return ":".join(f"{octet:02X}" for octet in mac)
 
 # Function to generate a unique transaction ID
+
+
 def generate_transaction_id():
     """Generate a unique transaction ID."""
     return random.randint(1, 0xFFFFFFFF)
 
 # Send a DHCP Discover message to the server with options
+
+
 def send_dhcp_discover(client_socket, xid, mac_address, requested_ip=None, lease_duration=None):
     msg_type = 1  # DHCP Discover
-    mac_bytes = bytes.fromhex(mac_address.replace(":", ""))  # Convert MAC address to bytes
+    mac_bytes = bytes.fromhex(mac_address.replace(
+        ":", ""))  # Convert MAC address to bytes
 
     # Pad MAC address to 16 bytes (if shorter)
     mac_bytes = mac_bytes.ljust(16, b'\x00')
@@ -31,10 +38,12 @@ def send_dhcp_discover(client_socket, xid, mac_address, requested_ip=None, lease
 
     if requested_ip:
         requested_ip_bytes = socket.inet_aton(requested_ip)
-        options += struct.pack("!BB4s", 50, 4, requested_ip_bytes)  # Option 50 (Requested IP)
+        # Option 50 (Requested IP)
+        options += struct.pack("!BB4s", 50, 4, requested_ip_bytes)
 
     if lease_duration:
-        options += struct.pack("!BBI", 51, 4, lease_duration)  # Option 51 (Lease Time)
+        # Option 51 (Lease Time)
+        options += struct.pack("!BBI", 51, 4, lease_duration)
 
     # Append end of options field (Option 255)
     options += struct.pack("!B", 255)
@@ -44,24 +53,34 @@ def send_dhcp_discover(client_socket, xid, mac_address, requested_ip=None, lease
 
     # Send the message to the broadcast address on port 67 (DHCP Server)
     client_socket.sendto(discover_message, ("255.255.255.255", 67))
-    print(f"Sent DHCP Discover from MAC {mac_address} with options: IP {requested_ip}, Lease Duration {lease_duration}...")
+    print(f"Sent DHCP Discover from MAC {mac_address} with options: IP {
+          requested_ip}, Lease Duration {lease_duration}...")
 
 # Send DHCP Request or Decline message to the server
+
+
 def send_dhcp_request_or_decline(client_socket, xid, mac_address, server_identifier, offered_ip, server_address, requested_ip):
     if (requested_ip and offered_ip == requested_ip) or not requested_ip:
         msg_type = 3  # DHCP Request
         action = "Request"
     else:
-        msg_type = 4  # DHCP Decline
-        action = "Decline"
+        actions = input("Enter Action Needed: ")
+        if actions == "R":
+            msg_type = 3  # DHCP Request
+            action = "Request"
+        else:
+            msg_type = 4  # DHCP Decline
+            action = "Decline"
 
-    mac_bytes = bytes.fromhex(mac_address.replace(":", ""))  # Convert MAC address to bytes
+    mac_bytes = bytes.fromhex(mac_address.replace(
+        ":", ""))  # Convert MAC address to bytes
 
     # Pad MAC address to 16 bytes (if shorter)
     mac_bytes = mac_bytes.ljust(16, b'\x00')
 
     # Build the DHCP Request or Decline message
-    message = struct.pack("!I B 16s 4s 4s", xid, msg_type, mac_bytes, socket.inet_aton(server_identifier), socket.inet_aton(offered_ip))
+    message = struct.pack("!I B 16s 4s 4s", xid, msg_type, mac_bytes, socket.inet_aton(
+        server_identifier), socket.inet_aton(offered_ip))
 
     # Append end of options field (Option 255)
     message += struct.pack("!B", 255)
@@ -72,15 +91,19 @@ def send_dhcp_request_or_decline(client_socket, xid, mac_address, server_identif
     return action
 
 # Send DHCP Release message to the server
-def send_dhcp_release(client_socket, xid, mac_address, server_identifier, leased_ip,server_address):
+
+
+def send_dhcp_release(client_socket, xid, mac_address, server_identifier, leased_ip, server_address):
     msg_type = 7  # DHCP Release
-    mac_bytes = bytes.fromhex(mac_address.replace(":", ""))  # Convert MAC address to bytes
+    mac_bytes = bytes.fromhex(mac_address.replace(
+        ":", ""))  # Convert MAC address to bytes
 
     # Pad MAC address to 16 bytes (if shorter)
     mac_bytes = mac_bytes.ljust(16, b'\x00')
 
     # Build the DHCP Release message
-    release_message = struct.pack("!I B 16s 4s 4s", xid, msg_type, mac_bytes, socket.inet_aton(server_identifier), socket.inet_aton(leased_ip))
+    release_message = struct.pack("!I B 16s 4s 4s", xid, msg_type, mac_bytes, socket.inet_aton(
+        server_identifier), socket.inet_aton(leased_ip))
 
     # Append end of options field (Option 255)
     release_message += struct.pack("!B", 255)
@@ -90,6 +113,8 @@ def send_dhcp_release(client_socket, xid, mac_address, server_identifier, leased
     print(f"Sent DHCP Release for IP {leased_ip} to server {server_address}")
 
 # Start the DHCP client
+
+
 def start_dhcp_client(mac_address=None, requested_ip=None, lease_duration=None):
     xid = generate_transaction_id()
     port = random.randint(10000, 65000)
@@ -102,58 +127,78 @@ def start_dhcp_client(mac_address=None, requested_ip=None, lease_duration=None):
     # Set timeout for the socket
     client_socket.settimeout(10)  # Timeout in seconds
 
-    print(f"Starting DHCP client on port {port} with MAC {mac_address} and XID {xid}...")
+    print(f"Starting DHCP client on port {
+          port} with MAC {mac_address} and XID {xid}...")
 
     # Send DHCP Discover with options
-    send_dhcp_discover(client_socket, xid, mac_address, requested_ip, lease_duration)
-
+    send_dhcp_discover(client_socket, xid, mac_address,
+                       requested_ip, lease_duration)
     try:
-        while True:
-            # Receive DHCP messages
-            message, server_address = client_socket.recvfrom(1024)
-            xid_received, msg_type = struct.unpack("!I B", message[:5])
+        try:
+            while True:
+                # Receive DHCP messages
+                message, server_address = client_socket.recvfrom(1024)
+                xid_received, msg_type = struct.unpack("!I B", message[:5])
 
-            if xid_received != xid:
-                # Ignore messages not meant for this client
-                continue
+                if xid_received != xid:
+                    # Ignore messages not meant for this client
+                    continue
 
-            if msg_type == 2:  # DHCP Offer
-                offered_ip = socket.inet_ntoa(message[5:9])
-                server_identifier = socket.inet_ntoa(message[9:13])
-                print(f"Received DHCP Offer: {offered_ip} from {server_address}")
+                if msg_type == 2:  # DHCP Offer
+                    offered_ip = socket.inet_ntoa(message[5:9])
+                    server_identifier = socket.inet_ntoa(message[9:13])
+                    print(f"Received DHCP Offer: {
+                        offered_ip} from {server_address}")
 
-                # Send DHCP Request or Decline
-                action=send_dhcp_request_or_decline(client_socket, xid, mac_address, server_identifier, offered_ip, server_address, requested_ip)
-                if action == "Decline":
-                    break
+                    # Send DHCP Request or Decline
+                    action = send_dhcp_request_or_decline(
+                        client_socket, xid, mac_address, server_identifier, offered_ip, server_address, requested_ip)
+                    if action == "Decline":
+                        return [-1]
 
-            elif msg_type == 5:  # DHCP Ack
-                lease_duration = struct.unpack("!I", message[9:13])[0]
-                leased_ip = socket.inet_ntoa(message[5:9])
-                print(f"Received DHCP Ack: Lease successful! Lease duration: {lease_duration} seconds for IP {leased_ip}")
+                elif msg_type == 5:  # DHCP Ack
+                    lease_duration = struct.unpack("!I", message[9:13])[0]
+                    leased_ip = socket.inet_ntoa(message[5:9])
+                    print(f"Received DHCP Ack: Lease successful! Lease duration: {
+                        lease_duration} seconds for IP {leased_ip}")
 
-                # Simulate using the lease for some time
-                # time.sleep(5)
+                    # Simulate using the lease for some time
+                    print("Lease in use. Waiting for lease duration...")
+                    # time.sleep(5)
+                    return [lease_duration, client_socket, xid, mac_address, server_identifier, leased_ip, server_address]
 
-                # # Send DHCP Release
-                # send_dhcp_release(client_socket, xid, mac_address, server_identifier, leased_ip,server_address)
-                break
+                elif msg_type == 6:  # DHCP Nak
+                    print("Received DHCP Nak: Request rejected.")
+                    return [-1]
 
-            elif msg_type == 6:  # DHCP Nak
-                print("Received DHCP Nak: Request rejected.")
-                break
+                time.sleep(1)  # Small delay to avoid flooding
 
-            time.sleep(1)  # Small delay to avoid flooding
-
-    except socket.timeout:
-        print("Timeout: No response from DHCP server.")
-        print("Retry sending DHCP Discover...")
-        start_dhcp_client(mac_address=mac_address, requested_ip=requested_ip, lease_duration=lease_duration)
-    finally:
+        except socket.timeout:
+            print("Timeout: No response from DHCP server.")
+            return [-1]
+    except KeyboardInterrupt:
         client_socket.close()
+        print("KeyboardInterrupt.")
+        return [-1]
+
 
 if __name__ == "__main__":
+    clock = -1
     requested_ip = "192.168.1.101"  # Example requested IP
     lease_duration = 15  # Example lease duration
     mac_address = generate_unique_mac()
-    start_dhcp_client(mac_address=mac_address, requested_ip=requested_ip, lease_duration=lease_duration)
+    clock = start_dhcp_client(mac_address=mac_address,
+                              requested_ip=requested_ip, lease_duration=lease_duration)
+    if len(clock) > 1:
+        duration, client_socket, xid, mac_address, server_identifier, leased_ip, server_address = clock
+        i = duration
+        try:
+            while i != 0:
+                time.sleep(1)
+                i -= 1
+        except KeyboardInterrupt:
+            send_dhcp_release(client_socket, xid, mac_address,
+                              server_identifier, leased_ip, server_address)
+    elif len(clock) == 1 and clock[0] == -1:
+        # print("Error in DHCP Client")
+        pass
