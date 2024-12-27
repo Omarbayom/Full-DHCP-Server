@@ -36,63 +36,6 @@ discover_cache_lock = threading.Lock()
 #     Parameters:
 #     - xid: Transaction ID (4 bytes)
 #     - client_mac: Client MAC address (string in format 'xx:xx:xx:xx:xx:xx')
-#     - msg_type: DHCP message type (e.g., DISCOVER, OFFER, REQUEST, ACK)
-#     - server_ip: Server's IP address
-#     - client_ip: Client IP address (default: '0.0.0.0')
-#     - your_ip: 'Your' IP address assigned to the client (default: '0.0.0.0')
-#     - gateway_ip: Gateway IP address (default: '0.0.0.0')
-#     - options: Additional DHCP options as bytes (default: None)
-
-#     Returns:
-#     - The constructed DHCP message as bytes.
-#     """
-#     # Fixed-length fields
-#     # Message type: 1 = BOOTREQUEST, 2 = BOOTREPLY
-#     op = 2 if msg_type in (2, 5, 6) else 1
-#     htype = 1  # Hardware type: 1 = Ethernet
-#     hlen = 6  # Hardware address length: 6 bytes for MAC
-#     hops = 0  # Hops: 0
-#     secs = 0  # Seconds elapsed: 0
-#     flags = 0x8000  # Broadcast flag
-#     chaddr = bytes.fromhex(client_mac.replace(":", "")) + \
-#         b'\x00' * 10  # Pad to 16 bytes
-#     sname = b'\x00' * 64  # Server name: 64 bytes, zero-padded
-#     file = b'\x00' * 128  # Boot filename: 128 bytes, zero-padded
-
-#     # Default DHCP Options
-#     magic_cookie = b'\x63\x82\x53\x63'  # DHCP magic cookie
-#     default_options = b'\x35\x01' + bytes([msg_type])  # DHCP Message Type
-#     if options:
-#         options_data = default_options + options + b'\xff'  # Add end option
-#     else:
-#         options_data = default_options + b'\xff'
-
-#     # Construct the DHCP message
-#     dhcp_message = struct.pack(
-#         "!BBBBIHHIIII16s64s128s",
-#         op, htype, hlen, hops, xid, secs, flags,
-#         int.from_bytes(socket.inet_aton(client_ip),
-#                        byteorder='big'),  # Client IP
-#         int.from_bytes(socket.inet_aton(your_ip), byteorder='big'),  # Your IP
-#         int.from_bytes(socket.inet_aton(server_ip),
-#                        byteorder='big'),  # Server IP
-#         int.from_bytes(socket.inet_aton(gateway_ip),
-#                        byteorder='big'),  # Gateway IP
-#         chaddr, sname, file
-#     ) + magic_cookie + options_data
-
-#     return dhcp_message
-
-# def construct_dhcp_message(
-#     xid, client_mac, msg_type, server_ip, client_ip="0.0.0.0",
-#     your_ip="0.0.0.0", gateway_ip="0.0.0.0", options=None
-# ):
-#     """
-#     Constructs a DHCP message.
-
-#     Parameters:
-#     - xid: Transaction ID (4 bytes)
-#     - client_mac: Client MAC address (string in format 'xx:xx:xx:xx:xx:xx')
 #     - msg_type: DHCP message type (e.g., DISCOVER, OFFER, REQUEST, ACK, NAK)
 #     - server_ip: Server's IP address
 #     - client_ip: Client IP address (default: '0.0.0.0')
@@ -284,6 +227,12 @@ def lease_expiry_checker():
             for mac_address, (ip, lease_expiry, xid) in lease_table.items():
                 if lease_expiry < current_time:
                     expired_clients.append((mac_address, xid, mac_address))
+                # print("\033[94mlease_expiry : ", lease_expiry, "\033[0m")
+
+                # print("\033[94mmac_address : ", mac_address, "\033[0m")
+                # print("\033[94mip_address : ", ip, "\033[0m")
+                # print("\033[94mlease_expiry-current_time : ",
+                #       lease_expiry - current_time, "\033[0m")
 
             for mac_address, xid, mac_address in expired_clients:
                 ip, _, _ = lease_table.pop(mac_address)
@@ -298,9 +247,8 @@ def lease_expiry_checker():
                 # Remove the client from discover_cache
                 with discover_cache_lock:  # Ensure thread safety if discover_cache is shared across threads
                     for key in list(discover_cache.keys()):
-                        logging.debug(f"Checking {mac_address} with {
-                                      discover_cache[key].get('mac_address')}")
-                        if discover_cache[key].get('mac_address') == mac_address:
+                        # logging.debug(f"Checking {mac_address} with ")
+                        if key == mac_address:
                             del discover_cache[key]
                             logging.info(f"Removed client  (MAC: {
                                          mac_address}) from discover_cache")
@@ -319,6 +267,7 @@ def handle_client(message, client_address, server_socket):
     msg_type = parsed_message['options'][53][0]
     xid = int(parsed_message['xid'])
     # xid, msg_type = struct.unpack("!I B", message[:5])
+
     if msg_type == 1:  # DHCP Discover
         if mac_address not in lease_table.keys():
             logging.info(f"Received DHCP Discover from {mac_address}")
@@ -330,7 +279,7 @@ def handle_client(message, client_address, server_socket):
             # Extract requested IP and lease duration if present
             # DHCP options start after the MAC address
             options = parsed_message['options']
-            print("OPTIONS : ", options)
+            # print("OPTIONS : ", options)
             requested_ip = None
             requested_lease = lease_duration
 
@@ -369,7 +318,13 @@ def handle_client(message, client_address, server_socket):
                     requested_ip = socket.inet_ntoa(option_value)
                     logging.info(f"Requested IP: {requested_ip}")
                 elif i == 51:  # Lease Duration (Option 51)
-                    requested_lease = struct.unpack("!I", option_value)[0]
+
+                    requested_lease = int.from_bytes(
+                        option_value, byteorder='big')
+                    print("\033[94mOPTIONS : ", options, "\033[0m")
+                    print("\033[93mrequested_lease : ",
+                          requested_lease, "\033[0m")
+
                     logging.info(f"Requested Lease Duration: {
                         requested_lease} seconds")
 
@@ -382,10 +337,9 @@ def handle_client(message, client_address, server_socket):
                 requested_ip = ip_pool[0]
             # Save the Discover message options for later use in Request
             with discover_cache_lock:
-                discover_cache[client_address] = {
-                    'mac_address': mac_address,
+                discover_cache[mac_address] = {
                     'requested_ip': requested_ip,
-                    'requested_lease': requested_lease or lease_duration
+                    'requested_lease': lease_duration if requested_lease == 0 else requested_lease
                 }
 
             # Send DHCP Offer
@@ -393,6 +347,7 @@ def handle_client(message, client_address, server_socket):
                 if requested_ip and requested_ip in ip_pool:
                     ip_pool.remove(requested_ip)
                     with lease_table_lock:
+
                         lease_table[mac_address] = (
                             requested_ip, time.time() + requested_lease, xid
                         )
@@ -402,7 +357,6 @@ def handle_client(message, client_address, server_socket):
                     offer_message = construct_dhcp_message(
                         xid, mac_address, msg_type=2, server_ip=server_ip, your_ip=requested_ip)
                     # client_address = ("255.255.255.255", 68)
-                    print("Hello Client Address : ", client_address)
                     server_socket.sendto(offer_message, client_tuple)
                 else:
                     logging.warning(
@@ -439,7 +393,8 @@ def handle_client(message, client_address, server_socket):
 
         # Retrieve saved Discover data from cache
         with discover_cache_lock:
-            discover_data = discover_cache.get(client_address)
+            discover_data = discover_cache.get(mac_address)
+            # print("\033[93mDISCOVER DATA : ", discover_data, "\033[0m")
             if discover_data:
                 requested_ip = discover_data['requested_ip'] or requested_ip
                 requested_lease = discover_data['requested_lease'] or requested_lease
@@ -456,10 +411,14 @@ def handle_client(message, client_address, server_socket):
                     requested_lease, lease_table[mac_address][2]
                 )
 
-                # DHCP Ack with the requested lease duration
+                # # DHCP Ack with the requested lease duration
+                # print("requested_lease : ", requested_lease)
+                # print("mac_address : ", mac_address)
+                # print("requested_ip : ", requested_ip)
                 ack_message = construct_dhcp_message(
                     xid, mac_address, msg_type=5, server_ip=server_ip, your_ip=requested_ip, lease_time=requested_lease)
                 # ack_message = construct_dhcp_message(xid, mac_address, 5, server_ip, your_ip=requested_ip,
+                # print("ACK MESSAGE : ", ack_message)
                 server_socket.sendto(ack_message, client_tuple)
                 logging.info(f"Assigned IP {requested_ip} to {client_tuple} (MAC: {
                              mac_address}) with lease duration {requested_lease} seconds")
@@ -519,7 +478,8 @@ def handle_client(message, client_address, server_socket):
             logging.info(f"Updated lease expiry for /IP {
                          released_ip} to current time")
     else:
-        print("Hell Hell")
+        # print("Hell Hell")
+        pass
 
 # Starts the DHCP server
 
