@@ -132,3 +132,24 @@
 2024-12-21 18:13:19,139 - INFO - Lease expired: Released IP 192.168.1.100 for client ('192.168.56.1', 23606) (MAC: 00:1a:2b:d8:9b:42) (XID: 1293340035)
 2024-12-21 18:13:19,140 - INFO - Removed client ('192.168.56.1', 23606) (MAC: 00:1a:2b:d8:9b:42) from discover_cache
 2024-12-21 18:15:14,749 - INFO - DHCP Server started on 192.168.56.1, waiting for clients...
+2024-12-27 16:36:41,780 - INFO - DHCP Server started on 192.168.1.1, waiting for clients...
+2024-12-27 16:36:43,594 - INFO - Received DHCP Discover from 0.0.0.0
+2024-12-27 16:36:43,594 - INFO - Client MAC Address: ec:f4:bb:80:87:8c
+2024-12-27 16:36:43,594 - INFO - Offering Requested IP 192.168.1.100 to 0.0.0.0 (MAC: ec:f4:bb:80:87:8c) with lease duration 3600 seconds
+2024-12-27 16:36:48,580 - INFO - Can't give you 2 ips in the same time
+2024-12-27 16:36:52,018 - INFO - Can't give you 2 ips in the same time
+2024-12-27 16:36:59,861 - INFO - Can't give you 2 ips in the same time
+2024-12-27 16:37:16,846 - INFO - Can't give you 2 ips in the same time
+2024-12-27 16:37:49,603 - INFO - Can't give you 2 ips in the same time
+2024-12-27 16:37:54,446 - INFO - Can't give you 2 ips in the same time
+2024-12-27 16:38:01,789 - INFO - Can't give you 2 ips in the same time
+2024-12-27 16:38:18,695 - INFO - Can't give you 2 ips in the same time
+2024-12-27 16:43:21,691 - INFO - Can't give you 2 ips in the same time
+2024-12-27 16:43:26,438 - INFO - Can't give you 2 ips in the same time
+2024-12-27 16:43:31,314 - INFO - Can't give you 2 ips in the same time
+2024-12-27 16:43:38,796 - INFO - Can't give you 2 ips in the same time
+2024-12-27 16:43:54,297 - INFO - Can't give you 2 ips in the same time
+2024-12-27 16:44:27,174 - INFO - Can't give you 2 ips in the same time
+2024-12-27 16:44:32,047 - INFO - Can't give you 2 ips in the same time
+2024-12-27 16:44:39,999 - INFO - Can't give you 2 ips in the same time
+2024-12-27 16:44:55,640 - INFO - Can't give you 2 ips in the same time
