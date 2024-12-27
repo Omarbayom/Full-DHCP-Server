@@ -310,7 +310,7 @@ def lease_expiry_checker():
 
 # Handles incoming DHCP messages from clients
 def handle_client(message, client_address, server_socket):
-
+    # print(message)
     parsed_message = parse_dhcp_message(message)
     client_tuple = ("255.255.255.255", 68)
     mac_address = ':'.join(
@@ -430,8 +430,8 @@ def handle_client(message, client_address, server_socket):
         if 50 in parsed_message['options']:
             requested_ip = parsed_message['options'][50]
         else:
-            requested_ip=client_address
-            
+            requested_ip = client_address
+
         logging.info(f"Welcome to request messages")
         mac_address = ':'.join(
             ['%02x' % b for b in parsed_message['chaddr']])  # MAC is 6 bytes
