@@ -515,7 +515,7 @@ class Server:
                         for key in list(discover_cache.keys()):
                             logging.debug(f"Checking {mac_address} with {
                                 discover_cache[key].get('mac_address')}")
-                            if discover_cache[key].get('mac_address') == mac_address:
+                            if key == mac_address:
                                 del discover_cache[key]
                                 logging.info(f"Removed client(MAC: {
                                     mac_address}) from discover_cache")
@@ -598,7 +598,8 @@ class Server:
                     requested_ip = socket.inet_ntoa(option_value)
                     logging.info(f"Requested IP: {requested_ip}")
                 elif i == 51:  # Lease Duration (Option 51)
-                    requested_lease = struct.unpack("!I", option_value)[0]
+                    requested_lease = int.from_bytes(
+                        option_value, byteorder='big')
                     logging.info(f"Requested Lease Duration: {
                         requested_lease} seconds")
 
@@ -613,10 +614,9 @@ class Server:
                 requested_ip = ip_pool[0]
             # Save the Discover message options for later use in Request
             with Server.discover_cache_lock:
-                discover_cache[client_address] = {
-                    'mac_address': mac_address,
+                discover_cache[mac_address] = {
                     'requested_ip': requested_ip,
-                    'requested_lease': requested_lease or lease_duration
+                    'requested_lease': lease_duration if requested_lease == 0 else requested_lease
                 }
 
             # Send DHCP Offer
@@ -624,9 +624,9 @@ class Server:
                 if requested_ip and requested_ip in ip_pool:
                     with Server.lease_table_lock:
                         lease_table[mac_address] = (
-                            requested_ip, time.time() + 5, xid)
+                            requested_ip, time.time() + requested_lease, xid)
                     logging.info(f"Offering Requested IP {requested_ip} to {client_address}(MAC: {
-                        mac_address}) with lease duration {5} seconds")
+                        mac_address}) with lease duration {requested_lease} seconds")
 
                     offer_message = Server.construct_dhcp_message(
                         xid=xid,
@@ -675,7 +675,7 @@ class Server:
 
             # Retrieve saved Discover data from cache
             with Server.discover_cache_lock:
-                discover_data = discover_cache.get(client_address)
+                discover_data = discover_cache.get(mac_address)
                 if discover_data:
                     requested_ip = discover_data['requested_ip'] or requested_ip
                     requested_lease = discover_data['requested_lease'] or requested_lease
