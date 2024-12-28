@@ -7,9 +7,12 @@ BUFFER_SIZE = 1024
 
 # Example IP pool from which the DHCP server can assign IPs
 ip_pool = [
-    # "192.168.1.100",
-    # "192.168.1.101",
-    "192.168.1.102"
+    "192.168.1.100",
+    "192.168.1.101",
+    "192.168.1.102",
+    "192.168.1.103",
+    "192.168.1.104",
+
 ]
 
 # Lease duration (time in seconds that the client can use the assigned IP address)
