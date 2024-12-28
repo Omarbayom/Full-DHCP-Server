@@ -8,6 +8,7 @@ import platform
 import logging
 from config import ip_pool, lease_duration, server_ip, lease_table, discover_cache
 
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -23,146 +24,15 @@ lease_table_lock = threading.Lock()
 ip_pool_lock = threading.Lock()
 discover_cache_lock = threading.Lock()
 
-# Periodically checks for expired leases
-
-
-# def construct_dhcp_message(
-#     xid, client_mac, msg_type, server_ip, client_ip="0.0.0.0",
-#     your_ip="0.0.0.0", gateway_ip="0.0.0.0", options=None
-# ):
-#     """
-#     Constructs a DHCP message.
-
-#     Parameters:
-#     - xid: Transaction ID (4 bytes)
-#     - client_mac: Client MAC address (string in format 'xx:xx:xx:xx:xx:xx')
-#     - msg_type: DHCP message type (e.g., DISCOVER, OFFER, REQUEST, ACK)
-#     - server_ip: Server's IP address
-#     - client_ip: Client IP address (default: '0.0.0.0')
-#     - your_ip: 'Your' IP address assigned to the client (default: '0.0.0.0')
-#     - gateway_ip: Gateway IP address (default: '0.0.0.0')
-#     - options: Additional DHCP options as bytes (default: None)
-
-#     Returns:
-#     - The constructed DHCP message as bytes.
-#     """
-#     # Fixed-length fields
-#     # Message type: 1 = BOOTREQUEST, 2 = BOOTREPLY
-#     op = 2 if msg_type in (2, 5, 6) else 1
-#     htype = 1  # Hardware type: 1 = Ethernet
-#     hlen = 6  # Hardware address length: 6 bytes for MAC
-#     hops = 0  # Hops: 0
-#     secs = 0  # Seconds elapsed: 0
-#     flags = 0x8000  # Broadcast flag
-#     chaddr = bytes.fromhex(client_mac.replace(":", "")) + \
-#         b'\x00' * 10  # Pad to 16 bytes
-#     sname = b'\x00' * 64  # Server name: 64 bytes, zero-padded
-#     file = b'\x00' * 128  # Boot filename: 128 bytes, zero-padded
-
-#     # Default DHCP Options
-#     magic_cookie = b'\x63\x82\x53\x63'  # DHCP magic cookie
-#     default_options = b'\x35\x01' + bytes([msg_type])  # DHCP Message Type
-#     if options:
-#         options_data = default_options + options + b'\xff'  # Add end option
-#     else:
-#         options_data = default_options + b'\xff'
-
-#     # Construct the DHCP message
-#     dhcp_message = struct.pack(
-#         "!BBBBIHHIIII16s64s128s",
-#         op, htype, hlen, hops, xid, secs, flags,
-#         int.from_bytes(socket.inet_aton(client_ip),
-#                        byteorder='big'),  # Client IP
-#         int.from_bytes(socket.inet_aton(your_ip), byteorder='big'),  # Your IP
-#         int.from_bytes(socket.inet_aton(server_ip),
-#                        byteorder='big'),  # Server IP
-#         int.from_bytes(socket.inet_aton(gateway_ip),
-#                        byteorder='big'),  # Gateway IP
-#         chaddr, sname, file
-#     ) + magic_cookie + options_data
-
-#     return dhcp_message
-
-# def construct_dhcp_message(
-#     xid, client_mac, msg_type, server_ip, client_ip="0.0.0.0",
-#     your_ip="0.0.0.0", gateway_ip="0.0.0.0", options=None
-# ):
-#     """
-#     Constructs a DHCP message.
-
-#     Parameters:
-#     - xid: Transaction ID (4 bytes)
-#     - client_mac: Client MAC address (string in format 'xx:xx:xx:xx:xx:xx')
-#     - msg_type: DHCP message type (e.g., DISCOVER, OFFER, REQUEST, ACK, NAK)
-#     - server_ip: Server's IP address
-#     - client_ip: Client IP address (default: '0.0.0.0')
-#     - your_ip: 'Your' IP address assigned to the client (default: '0.0.0.0')
-#     - gateway_ip: Gateway IP address (default: '0.0.0.0')
-#     - options: Additional DHCP options as bytes (default: None)
-
-#     Returns:
-#     - The constructed DHCP message as bytes.
-#     """
-#     # Fixed-length fields
-#     # Message type: 1 = BOOTREQUEST, 2 = BOOTREPLY
-#     op = 2 if msg_type in (2, 5, 6) else 1  # BOOTREPLY for OFFER, ACK, NAK
-#     htype = 1  # Hardware type: 1 = Ethernet
-#     hlen = 6  # Hardware address length: 6 bytes for MAC
-#     hops = 0  # Hops: 0
-#     secs = 0  # Seconds elapsed: 0
-#     flags = 0x8000  # Broadcast flag
-#     chaddr = bytes.fromhex(client_mac.replace(":", "")) + \
-#         b'\x00' * 10  # Pad to 16 bytes
-#     sname = b'\x00' * 64  # Server name: 64 bytes, zero-padded
-#     file = b'\x00' * 128  # Boot filename: 128 bytes, zero-padded
-
-#     # Default DHCP Options
-#     magic_cookie = b'\x63\x82\x53\x63'  # DHCP magic cookie
-#     default_options = b'\x35\x01' + bytes([msg_type])  # DHCP Message Type
-#     if options:
-#         options_data = default_options + options + b'\xff'  # Add end option
-#     else:
-#         options_data = default_options + b'\xff'
-
-#     # Construct the DHCP message
-#     dhcp_message = struct.pack(
-#         "!BBBBIHHIIII16s64s128s",
-#         op, htype, hlen, hops, xid, secs, flags,
-#         int.from_bytes(socket.inet_aton(client_ip),
-#                        byteorder='big'),  # Client IP
-#         int.from_bytes(socket.inet_aton(your_ip), byteorder='big'),  # Your IP
-#         int.from_bytes(socket.inet_aton(server_ip),
-#                        byteorder='big'),  # Server IP
-#         int.from_bytes(socket.inet_aton(gateway_ip),
-#                        byteorder='big'),  # Gateway IP
-#         chaddr, sname, file
-#     ) + magic_cookie + options_data
-
-#     return dhcp_message
 
 def construct_dhcp_message(
-    xid, client_mac, msg_type, server_ip, client_ip="0.0.0.0",
-    your_ip="0.0.0.0", gateway_ip="0.0.0.0", options=None,
-    lease_time=60, subnet_mask="255.255.255.0", dns_server=None
+    xid, client_mac, msg_type, server_ip, client_ip="0.0.0.0", your_ip="0.0.0.0", gateway_ip="0.0.0.0",
+    options=None, lease_time=60, subnet_mask="255.255.255.0", dns_servers=None, domain_name="example.com",
+    broadcast_address=None, t1_time=0, t2_time=0, option_overload=None, time_offset=0, time_servers=None, name_servers=None,
+    log_servers=None, cookie_servers=None, lpr_servers=None, impress_servers=None, rlp_servers=None, max_message_size=1500
 ):
     """
-    Constructs a DHCP message with additional options.
-
-    Parameters:
-    - xid: Transaction ID (4 bytes)
-    - client_mac: Client MAC address (string in format 'xx:xx:xx:xx:xx:xx')
-    - msg_type: DHCP message type (e.g., DISCOVER, OFFER, REQUEST, ACK, NAK)
-    - server_ip: Server's IP address
-    - client_ip: Client IP address (default: '0.0.0.0')
-    - your_ip: 'Your' IP address assigned to the client (default: '0.0.0.0')
-    - gateway_ip: Gateway IP address (default: '0.0.0.0')
-    - options: Additional DHCP options as bytes (default: None)
-    - lease_time: Lease time in seconds (default: 15)
-    - subnet_mask: Subnet mask for the client (default: '255.255.255.0')
-    - dns_server: DNS server IP address (default: None)
-
-    Returns:
-    - The constructed DHCP message as bytes.
+    Constructs a DHCP message with specified options, including additional network configuration options.
     """
     # Fixed-length fields
     op = 2 if msg_type in (2, 5, 6) else 1  # BOOTREPLY for OFFER, ACK, NAK
@@ -180,23 +50,90 @@ def construct_dhcp_message(
     magic_cookie = b'\x63\x82\x53\x63'  # DHCP magic cookie
     default_options = b'\x35\x01' + bytes([msg_type])  # DHCP Message Type
 
-    # Add Lease Time (Option 51)
+    # Standard Options
     lease_time_option = b'\x33\x04' + struct.pack('!I', lease_time)
-
-    # Add Subnet Mask (Option 1)
     subnet_mask_option = b'\x01\x04' + socket.inet_aton(subnet_mask)
-
-    # Add Router (Option 3)
     router_option = b'\x03\x04' + socket.inet_aton(gateway_ip)
-
-    # Add DNS Server (Option 6), if provided
     dns_server_option = b""
-    if dns_server:
-        dns_server_option = b'\x06\x04' + socket.inet_aton(dns_server)
+    if dns_servers:
+        dns_list = b"".join(socket.inet_aton(ip) for ip in dns_servers)
+        dns_server_option = b'\x06' + \
+            len(dns_list).to_bytes(1, 'big') + dns_list
+    domain_name_option = b'\x0f' + \
+        len(domain_name).to_bytes(1, 'big') + domain_name.encode()
+    broadcast_address_option = b""
+    if broadcast_address:
+        broadcast_address_option = b'\x1c\x04' + \
+            socket.inet_aton(broadcast_address)
+    t1_option = b'\x3a\x04' + struct.pack('!I', t1_time)
+    t2_option = b'\x3b\x04' + struct.pack('!I', t2_time)
+
+    max_message_size_option = b'\x39\x02' + struct.pack('!H', max_message_size)
+
+    #     # Add Option Overload (Option 52)
+    option_overload_option = b""
+    if option_overload is not None:
+        option_overload_option = b'\x34\x01' + bytes([option_overload])
+
+    # Additional Network Configuration Options
+    time_offset_option = b'\x02\x04' + struct.pack('!I', time_offset)
+    time_server_option = b""
+    if time_servers:
+        time_list = b"".join(socket.inet_aton(ip) for ip in time_servers)
+        time_server_option = b'\x04' + \
+            len(time_list).to_bytes(1, 'big') + time_list
+    name_server_option = b""
+    if name_servers:
+        name_list = b"".join(socket.inet_aton(ip) for ip in name_servers)
+        name_server_option = b'\x05' + \
+            len(name_list).to_bytes(1, 'big') + name_list
+    log_server_option = b""
+    if log_servers:
+        log_list = b"".join(socket.inet_aton(ip) for ip in log_servers)
+        log_server_option = b'\x07' + \
+            len(log_list).to_bytes(1, 'big') + log_list
+    cookie_server_option = b""
+    if cookie_servers:
+        cookie_list = b"".join(socket.inet_aton(ip) for ip in cookie_servers)
+        cookie_server_option = b'\x08' + \
+            len(cookie_list).to_bytes(1, 'big') + cookie_list
+    lpr_server_option = b""
+    if lpr_servers:
+        lpr_list = b"".join(socket.inet_aton(ip) for ip in lpr_servers)
+        lpr_server_option = b'\x09' + \
+            len(lpr_list).to_bytes(1, 'big') + lpr_list
+    impress_server_option = b""
+    if impress_servers:
+        impress_list = b"".join(socket.inet_aton(ip) for ip in impress_servers)
+        impress_server_option = b'\x0a' + \
+            len(impress_list).to_bytes(1, 'big') + impress_list
+    rlp_server_option = b""
+    if rlp_servers:
+        rlp_list = b"".join(socket.inet_aton(ip) for ip in rlp_servers)
+        rlp_server_option = b'\x0b' + \
+            len(rlp_list).to_bytes(1, 'big') + rlp_list
 
     # Combine all options
-    additional_options = lease_time_option + \
-        subnet_mask_option + router_option + dns_server_option
+    additional_options = (
+        lease_time_option +
+        subnet_mask_option +
+        router_option +
+        dns_server_option +
+        domain_name_option +
+        broadcast_address_option +
+        t1_option +
+        t2_option +
+        option_overload_option +
+        time_offset_option +
+        time_server_option +
+        name_server_option +
+        log_server_option +
+        cookie_server_option +
+        lpr_server_option +
+        impress_server_option +
+        rlp_server_option +
+        max_message_size_option
+    )
 
     # Merge options with defaults
     if options:
@@ -274,6 +211,8 @@ def parse_dhcp_options(options):
 
     return parsed_options
 
+# Periodically checks for expired leases
+
 
 def lease_expiry_checker():
     while True:
@@ -293,7 +232,7 @@ def lease_expiry_checker():
                     ip_pool.append(ip)
 
                 logging.info(f"Lease expired: Released IP {
-                             ip} for client  (MAC: {mac_address}) (XID: {xid})")
+                             ip} for client(MAC: {mac_address})(XID: {xid})")
 
                 # Remove the client from discover_cache
                 with discover_cache_lock:  # Ensure thread safety if discover_cache is shared across threads
@@ -302,7 +241,7 @@ def lease_expiry_checker():
                                       discover_cache[key].get('mac_address')}")
                         if discover_cache[key].get('mac_address') == mac_address:
                             del discover_cache[key]
-                            logging.info(f"Removed client  (MAC: {
+                            logging.info(f"Removed client(MAC: {
                                          mac_address}) from discover_cache")
                             break  # Exit loop once the entry is found and removed
         time.sleep(1)  # Check every 5 seconds
@@ -343,12 +282,25 @@ def handle_client(message, client_address, server_socket):
                 # Server Identifier Option
 
                 nak_options = b'\x36\x04' + socket.inet_aton(server_ip)
+
                 nak_message = construct_dhcp_message(
                     xid=xid,
                     client_mac=mac_address,
                     msg_type=6,  # DHCP NAK message type
                     server_ip=server_ip,
-                    options=nak_options
+                    client_ip="0.0.0.0",  # No IP assigned to the client
+                    gateway_ip="192.168.1.2",
+                    domain_name="example.com",
+                    dns_servers=["208.67.222.222", "208.67.220.220"],
+                    broadcast_address="192.167",
+                    time_offset=0,  # Default time offset
+                    time_servers=["192.168.1.10"],  # Example Time Server
+                    name_servers=["192.168.1.20"],  # Example Name Server
+                    log_servers=["192.168.1.30"],  # Example Log Server
+                    cookie_servers=["192.168.1.40"],  # Example Cookie Server
+                    lpr_servers=["192.168.1.50"],  # Example LPR Server
+                    impress_servers=["192.168.1.60"],  # Example Impress Server
+                    rlp_servers=["192.168.1.70"]  # Example RLP Server
                 )
                 server_socket.sendto(nak_message, client_tuple)
                 return
@@ -396,12 +348,27 @@ def handle_client(message, client_address, server_socket):
                         lease_table[mac_address] = (
                             requested_ip, time.time() + requested_lease, xid
                         )
-                    logging.info(f"Offering Requested IP {requested_ip} to {client_address} (MAC: {
+                    logging.info(f"Offering Requested IP {requested_ip} to {client_address}(MAC: {
                         mac_address}) with lease duration {requested_lease} seconds")
 
                     offer_message = construct_dhcp_message(
-                        xid, mac_address, msg_type=2, server_ip=server_ip, your_ip=requested_ip)
-                    # client_address = ("255.255.255.255", 68)
+                        xid=xid,
+                        client_mac=mac_address,
+                        msg_type=2,  # DHCP Offer
+                        server_ip=server_ip,
+                        your_ip=requested_ip,
+                        gateway_ip="192.168.1.2",
+                        lease_time=20,
+                        subnet_mask="255.255.255.0",
+                        dns_servers=["208.67.222.222", "208.67.220.220"],
+                        domain_name="example.com",
+                        broadcast_address="192.168.1.255",
+                        t1_time=0,
+                        t2_time=0,
+                        option_overload=1,  # Option Overload for file and sname fields
+                        max_message_size=1500  # Maximum DHCP message size
+                    )
+
                     print("Hello Client Address : ", client_address)
                     server_socket.sendto(offer_message, client_tuple)
                 else:
@@ -417,9 +384,6 @@ def handle_client(message, client_address, server_socket):
                         server_ip=server_ip,
                         options=nak_options
                     )
-                    # client_address = ("255.255.255.255", 68)
-                    # nak_message = construct_dhcp_message(
-                    #     xid, mac_address, msg_type=6, server_ip=server_ip, your_ip=requested_ip)
                     server_socket.sendto(nak_message, client_tuple)
         else:
             pass
@@ -456,12 +420,25 @@ def handle_client(message, client_address, server_socket):
                     requested_lease, lease_table[mac_address][2]
                 )
 
-                # DHCP Ack with the requested lease duration
                 ack_message = construct_dhcp_message(
-                    xid, mac_address, msg_type=5, server_ip=server_ip, your_ip=requested_ip, lease_time=requested_lease)
-                # ack_message = construct_dhcp_message(xid, mac_address, 5, server_ip, your_ip=requested_ip,
+                    xid=xid,
+                    client_mac=mac_address,
+                    msg_type=5,  # DHCP ACK
+                    server_ip=server_ip,
+                    your_ip=requested_ip,
+                    gateway_ip="192.168.1.2",
+                    lease_time=requested_lease,
+                    subnet_mask="255.255.255.0",
+                    dns_servers=["208.67.222.222", "208.67.220.220"],
+                    domain_name="example.com",
+                    broadcast_address="192.168.1.255",
+                    t1_time=requested_lease // 2,
+                    t2_time=(requested_lease * 7) // 8,
+                    option_overload=0,  # No option overload
+                    max_message_size=1500  # Maximum DHCP message size
+                )
                 server_socket.sendto(ack_message, client_tuple)
-                logging.info(f"Assigned IP {requested_ip} to {client_tuple} (MAC: {
+                logging.info(f"Assigned IP {requested_ip} to(MAC: {
                              mac_address}) with lease duration {requested_lease} seconds")
             else:
 
@@ -477,7 +454,7 @@ def handle_client(message, client_address, server_socket):
 
                 server_socket.sendto(nak_message, client_tuple)
                 logging.warning(f"Rejected IP request {requested_ip} from {
-                                client_tuple} (MAC: {mac_address})")
+                                client_tuple}(MAC: {mac_address})")
 
     elif msg_type == 4:  # DHCP Decline
         # print("Decline")
@@ -516,7 +493,7 @@ def handle_client(message, client_address, server_socket):
             lease_record = tuple(lease_record)
             # Update the record in the table
             lease_table[mac_address] = lease_record
-            logging.info(f"Updated lease expiry for /IP {
+            logging.info(f"Updated lease expiry for / IP {
                          released_ip} to current time")
     else:
         print("Hell Hell")
