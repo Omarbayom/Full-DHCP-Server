@@ -251,7 +251,8 @@ def lease_expiry_checker():
 def handle_client(message, client_address, server_socket):
     # print(message)
     parsed_message = parse_dhcp_message(message)
-    client_tuple = ("255.255.255.255", 68)
+    client_tuple = (client_address, 68) if client_address != "0.0.0.0" else (
+        "255.255.255.255", 68)
     mac_address = ':'.join(
         ['%02x' % b for b in parsed_message['chaddr']])
     # client_address = client_address[0]
@@ -259,119 +260,119 @@ def handle_client(message, client_address, server_socket):
     xid = int(parsed_message['xid'])
     # xid, msg_type = struct.unpack("!I B", message[:5])
     if msg_type == 1:  # DHCP Discover
-        if mac_address not in lease_table.keys():
-            logging.info(f"Received DHCP Discover from {mac_address}")
+        logging.info(f"Received DHCP Discover from {mac_address}")
 
-            # Extract MAC address from the message (starting from byte 5)
-            # MAC is 6 bytes
-            logging.info(f"Client MAC Address: {mac_address}")
+        # Extract MAC address from the message (starting from byte 5)
+        # MAC is 6 bytes
+        logging.info(f"Client MAC Address: {mac_address}")
 
-            # Extract requested IP and lease duration if present
-            # DHCP options start after the MAC address
-            options = parsed_message['options']
-            print("OPTIONS : ", options)
-            requested_ip = None
-            requested_lease = lease_duration
+        # Extract requested IP and lease duration if present
+        # DHCP options start after the MAC address
+        options = parsed_message['options']
+        # print("OPTIONS : ", options)
+        requested_ip = None
+        requested_lease = lease_duration
 
-            if not ip_pool:
-                logging.warning(
-                    "IP pool is empty. Cannot assign IP to client.")
+        if not ip_pool and (mac_address not in lease_table.keys()):
+            logging.warning(
+                "IP pool is empty. Cannot assign IP to client.")
 
-                # DHCP NAK (Not Acknowledged)
-                # nak_message = struct.pack("!I B", xid, 6)
-                # Server Identifier Option
+            # DHCP NAK (Not Acknowledged)
+            # nak_message = struct.pack("!I B", xid, 6)
+            # Server Identifier Option
 
-                nak_options = b'\x36\x04' + socket.inet_aton(server_ip)
+            nak_options = b'\x36\x04' + socket.inet_aton(server_ip)
 
-                nak_message = construct_dhcp_message(
+            nak_message = construct_dhcp_message(
+                xid=xid,
+                client_mac=mac_address,
+                msg_type=6,  # DHCP NAK message type
+                server_ip=server_ip,
+                client_ip="0.0.0.0",  # No IP assigned to the client
+                gateway_ip="192.168.1.2",
+                domain_name="example.com",
+                dns_servers=["208.67.222.222", "208.67.220.220"],
+                broadcast_address="192.167",
+                time_offset=0,  # Default time offset
+                time_servers=["192.168.1.10"],  # Example Time Server
+                name_servers=["192.168.1.20"],  # Example Name Server
+                log_servers=["192.168.1.30"],  # Example Log Server
+                cookie_servers=["192.168.1.40"],  # Example Cookie Server
+                lpr_servers=["192.168.1.50"],  # Example LPR Server
+                impress_servers=["192.168.1.60"],  # Example Impress Server
+                rlp_servers=["192.168.1.70"]  # Example RLP Server
+            )
+            server_socket.sendto(nak_message, client_tuple)
+            return
+
+        # while i + 1 < len(options):
+        '''
+        'options': {
+        53: b'\x01',
+        61: b'\x01\xec\xf4\xbb\x80\x87\x8c',
+        12: b'PC-2',
+        60: b'MSFT 5.0',
+        55: b'\x01\x03\x06\x0f\x1f!+,./wy\xf9\xfc'}
+        '''
+        i = 0
+        for i in options.keys():
+            option_value = options[i]
+            if i == 50:  # Requested IP (Option 50)
+                requested_ip = socket.inet_ntoa(option_value)
+                logging.info(f"Requested IP: {requested_ip}")
+            elif i == 51:  # Lease Duration (Option 51)
+                requested_lease = struct.unpack("!I", option_value)[0]
+                logging.info(f"Requested Lease Duration: {
+                    requested_lease} seconds")
+
+        if requested_ip and requested_ip not in ip_pool:
+            logging.warning(
+                f"Requested IP {requested_ip} is not available.")
+            if mac_address not in lease_table.keys():
+                pass
+            requested_ip = ip_pool[0]
+
+        if not requested_ip:
+            requested_ip = ip_pool[0]
+        # Save the Discover message options for later use in Request
+        with discover_cache_lock:
+            discover_cache[client_address] = {
+                'mac_address': mac_address,
+                'requested_ip': requested_ip,
+                'requested_lease': requested_lease or lease_duration
+            }
+
+        # Send DHCP Offer
+        with ip_pool_lock:
+            if requested_ip and requested_ip in ip_pool:
+                with lease_table_lock:
+                    lease_table[mac_address] = (
+                        requested_ip, time.time() + 5, xid)
+                logging.info(f"Offering Requested IP {requested_ip} to {client_address}(MAC: {
+                    mac_address}) with lease duration {5} seconds")
+
+                offer_message = construct_dhcp_message(
                     xid=xid,
                     client_mac=mac_address,
-                    msg_type=6,  # DHCP NAK message type
+                    msg_type=2,  # DHCP Offer
                     server_ip=server_ip,
-                    client_ip="0.0.0.0",  # No IP assigned to the client
+                    your_ip=requested_ip,
                     gateway_ip="192.168.1.2",
-                    domain_name="example.com",
+                    lease_time=20,
+                    subnet_mask="255.255.255.0",
                     dns_servers=["208.67.222.222", "208.67.220.220"],
-                    broadcast_address="192.167",
-                    time_offset=0,  # Default time offset
-                    time_servers=["192.168.1.10"],  # Example Time Server
-                    name_servers=["192.168.1.20"],  # Example Name Server
-                    log_servers=["192.168.1.30"],  # Example Log Server
-                    cookie_servers=["192.168.1.40"],  # Example Cookie Server
-                    lpr_servers=["192.168.1.50"],  # Example LPR Server
-                    impress_servers=["192.168.1.60"],  # Example Impress Server
-                    rlp_servers=["192.168.1.70"]  # Example RLP Server
+                    domain_name="example.com",
+                    broadcast_address="192.168.1.255",
+                    t1_time=0,
+                    t2_time=0,
+                    option_overload=1,  # Option Overload for file and sname fields
+                    max_message_size=1500  # Maximum DHCP message size
                 )
-                server_socket.sendto(nak_message, client_tuple)
-                return
 
-            # while i + 1 < len(options):
-            '''
-            'options': {
-            53: b'\x01',
-            61: b'\x01\xec\xf4\xbb\x80\x87\x8c',
-            12: b'PC-2',
-            60: b'MSFT 5.0',
-            55: b'\x01\x03\x06\x0f\x1f!+,./wy\xf9\xfc'}
-            '''
-            i = 0
-            for i in options.keys():
-                option_value = options[i]
-                if i == 50:  # Requested IP (Option 50)
-                    requested_ip = socket.inet_ntoa(option_value)
-                    logging.info(f"Requested IP: {requested_ip}")
-                elif i == 51:  # Lease Duration (Option 51)
-                    requested_lease = struct.unpack("!I", option_value)[0]
-                    logging.info(f"Requested Lease Duration: {
-                        requested_lease} seconds")
-
-            if requested_ip and requested_ip not in ip_pool:
-                logging.warning(
-                    f"Requested IP {requested_ip} is not available.")
-                requested_ip = ip_pool[0]
-
-            if not requested_ip:
-                requested_ip = ip_pool[0]
-            # Save the Discover message options for later use in Request
-            with discover_cache_lock:
-                discover_cache[client_address] = {
-                    'mac_address': mac_address,
-                    'requested_ip': requested_ip,
-                    'requested_lease': requested_lease or lease_duration
-                }
-
-            # Send DHCP Offer
-            with ip_pool_lock:
-                if requested_ip and requested_ip in ip_pool:
-                    ip_pool.remove(requested_ip)
-                    with lease_table_lock:
-                        lease_table[mac_address] = (
-                            requested_ip, time.time() + requested_lease, xid
-                        )
-                    logging.info(f"Offering Requested IP {requested_ip} to {client_address}(MAC: {
-                        mac_address}) with lease duration {requested_lease} seconds")
-
-                    offer_message = construct_dhcp_message(
-                        xid=xid,
-                        client_mac=mac_address,
-                        msg_type=2,  # DHCP Offer
-                        server_ip=server_ip,
-                        your_ip=requested_ip,
-                        gateway_ip="192.168.1.2",
-                        lease_time=20,
-                        subnet_mask="255.255.255.0",
-                        dns_servers=["208.67.222.222", "208.67.220.220"],
-                        domain_name="example.com",
-                        broadcast_address="192.168.1.255",
-                        t1_time=0,
-                        t2_time=0,
-                        option_overload=1,  # Option Overload for file and sname fields
-                        max_message_size=1500  # Maximum DHCP message size
-                    )
-
-                    print("Hello Client Address : ", client_address)
-                    server_socket.sendto(offer_message, client_tuple)
-                else:
+                # print("Hello Client Address : ", client_address)
+                server_socket.sendto(offer_message, client_tuple)
+            else:
+                if mac_address not in lease_table.keys():
                     logging.warning(
                         f"Requested IP {requested_ip} is not available.")
                     # DHCP NAK (Not Acknowledged)
@@ -385,10 +386,28 @@ def handle_client(message, client_address, server_socket):
                         options=nak_options
                     )
                     server_socket.sendto(nak_message, client_tuple)
-        else:
-            pass
-            # logging.info(f"CANNOT give you 2 IPs at the same time")
+                else:
+                    #     offer_message = construct_dhcp_message(
+                    #     xid=xid,
+                    #     client_mac=mac_address,
+                    #     msg_type=2,  # DHCP Offer
+                    #     server_ip=server_ip,
+                    #     your_ip=lease_table[mac_address][0],
+                    #     gateway_ip="192.168.1.2",
+                    #     lease_time=20,
+                    #     subnet_mask="255.255.255.0",
+                    #     dns_servers=["208.67.222.222", "208.67.220.220"],
+                    #     domain_name="example.com",
+                    #     broadcast_address="192.168.1.255",
+                    #     t1_time=0,
+                    #     t2_time=0,
+                    #     option_overload=1,  # Option Overload for file and sname fields
+                    #     max_message_size=1500  # Maximum DHCP message size
+                    # )
 
+                    # # print("Hello Client Address : ", client_address)
+                    # server_socket.sendto(offer_message, client_tuple)
+                    pass
     elif msg_type == 3:  # DHCP Request
         requested_lease = lease_duration
         if 50 in parsed_message['options']:
@@ -396,7 +415,7 @@ def handle_client(message, client_address, server_socket):
         else:
             requested_ip = client_address
 
-        logging.info(f"Welcome to request messages")
+        # logging.info(f"Welcome to request messages")
         mac_address = ':'.join(
             ['%02x' % b for b in parsed_message['chaddr']])  # MAC is 6 bytes
         # logging.info(f"Client MAC Address: {mac_address}")
@@ -411,6 +430,7 @@ def handle_client(message, client_address, server_socket):
                              requested_ip} with lease duration {requested_lease} seconds")
 
         with lease_table_lock:
+
             if mac_address in lease_table and lease_table[mac_address][0] == requested_ip:
 
                 # Renew the lease with the requested lease time
@@ -419,7 +439,9 @@ def handle_client(message, client_address, server_socket):
                     requested_ip, time.time() +
                     requested_lease, lease_table[mac_address][2]
                 )
-
+                with ip_pool_lock:
+                    if requested_ip in ip_pool:
+                        ip_pool.remove(requested_ip)
                 ack_message = construct_dhcp_message(
                     xid=xid,
                     client_mac=mac_address,
@@ -437,6 +459,7 @@ def handle_client(message, client_address, server_socket):
                     option_overload=0,  # No option overload
                     max_message_size=1500  # Maximum DHCP message size
                 )
+
                 server_socket.sendto(ack_message, client_tuple)
                 logging.info(f"Assigned IP {requested_ip} to(MAC: {
                              mac_address}) with lease duration {requested_lease} seconds")
@@ -457,10 +480,6 @@ def handle_client(message, client_address, server_socket):
                                 client_tuple}(MAC: {mac_address})")
 
     elif msg_type == 4:  # DHCP Decline
-        # print("Decline")
-        # xid, msg_type, mac_bytes, server_identifier, leased_ip = struct.unpack(
-        #     "!I B 16s 4s 4s", message[:29])
-        # declined_ip = socket.inet_ntoa(leased_ip)
         declined_ip = lease_table[mac_address][0]
         logging.info(f"Received DHCP Decline for IP {
                      declined_ip} from {client_address}")
@@ -477,12 +496,6 @@ def handle_client(message, client_address, server_socket):
                              declined_ip} to current time")
 
     elif msg_type == 7:  # DHCP Release
-        # print("Release")
-        # xid, msg_type, mac_bytes, server_identifier, leased_ip = struct.unpack(
-        #     "!I B 16s 4s 4s", message[:29])
-        # released_ip = socket.inet_ntoa(leased_ip)
-        # logging.info(f"{client_address}")
-        # released_ip = list(lease_table[client_address])[0]
         if mac_address in lease_table:
             lease_record = lease_table[mac_address]
             lease_record = list(lease_record)
@@ -496,7 +509,7 @@ def handle_client(message, client_address, server_socket):
             logging.info(f"Updated lease expiry for / IP {
                          released_ip} to current time")
     else:
-        print("Hell Hell")
+        print("Hello Hello")
 
 # Starts the DHCP server
 
