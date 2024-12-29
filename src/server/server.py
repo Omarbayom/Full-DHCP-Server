@@ -3,7 +3,7 @@ import struct
 import threading
 import time
 import logging
-from config import ip_pool, lease_duration, server_ip, lease_table, discover_cache, log_message
+from config import ip_pool, lease_duration, server_ip, lease_table, discover_cache, log_message, blocked_mac_addresses
 
 
 # ====================================================================================================
@@ -23,7 +23,6 @@ from config import ip_pool, lease_duration, server_ip, lease_table, discover_cac
 # ====================================================================================================
 # ====================================================================================================
 # ====================================================================================================
-
 """
 # ====================================================================================================
 # ================================ DHCP Server Message Types ==========================================
@@ -669,6 +668,34 @@ class Server:
                     server_socket.sendto(nak_message, client_tuple)
 
     # ====================================================================================================
+    # ================================ Block Client's MAC Address ========================================
+    # ====================================================================================================
+    @staticmethod
+    def dhcp_block_client(mac_address):
+        blocked_mac_addresses.add(mac_address)
+
+    # ====================================================================================================
+    # ================================ UnBlock Client's MAC Address ======================================
+    # ====================================================================================================
+    @staticmethod
+    def dhcp_unblock_client(mac_address):
+        if mac_address in blocked_mac_addresses:
+            blocked_mac_addresses.remove(mac_address)
+        else:
+            log_message(f"Client with MAC address {
+                        mac_address} is not blocked.", "warning")
+
+    # ====================================================================================================
+    # ========================================= Send Blocked NACK ========================================
+    # ====================================================================================================
+    @staticmethod
+    def dhcp_send_block_nack(xid, mac_address, server_socket, client_tuple):
+        Server.dhcp_send_nack(
+            xid, mac_address, server_socket, client_tuple)
+        log_message(
+            f"Client with MAC address {mac_address} is blocked.", "warning")
+
+    # ====================================================================================================
     # ======================== Handling DISCOVER Message Type (1) ========================================
     # ====================================================================================================
     @staticmethod
@@ -677,6 +704,12 @@ class Server:
         options = parsed_message['options']
         requested_ip = None
         requested_lease = lease_duration
+
+        if mac_address in blocked_mac_addresses:
+            Server.dhcp_send_block_nack(
+                xid, mac_address, server_socket, client_tuple)
+            return
+
         if not ip_pool and (mac_address not in lease_table.keys()):
             log_message(
                 "IP pool is empty. Cannot assign IP to client.", "warning")
@@ -722,6 +755,12 @@ class Server:
     @staticmethod
     def handle_dhcp_request(parsed_message, client_address, mac_address, xid, server_socket, client_tuple):
         requested_lease = lease_duration
+
+        if mac_address in blocked_mac_addresses:
+            Server.dhcp_send_block_nack(
+                xid, mac_address, server_socket, client_tuple)
+            return
+
         if 50 in parsed_message['options']:
             requested_ip = parsed_message['options'][50]
         else:
