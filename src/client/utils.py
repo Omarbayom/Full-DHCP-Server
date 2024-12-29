@@ -86,7 +86,7 @@ class Client:
         if lease_duration:
             options_dict[51] = lease_duration.to_bytes(
                 4, byteorder='big')  # Lease Time
-        # print(f"\033[92m{lease_duration}\033[0m")
+        print(f"\033[92m{lease_duration}\033[0m")
         final_message = Client.append_dhcp_options(message, options_dict)
         client_socket.sendto(final_message, ("255.255.255.255", 67))
         print(f"Sent DHCP Discover from MAC {mac_address} with requested IP {

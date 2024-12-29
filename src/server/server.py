@@ -863,7 +863,7 @@ class Server:
             requested_ip = parsed_message['options'][50]
         else:
             requested_ip = client_address
-
+        # print("requested_ip", requested_ip)
         mac_address = Server.get_mac_address(parsed_message)  # MAC is 6 bytes
 
         # Retrieve saved Discover data from cache
@@ -892,6 +892,7 @@ class Server:
             else:
                 Server.dhcp_send_nack(
                     xid, mac_address, server_socket, client_tuple)
+                # print(lease_table)
                 log_message(f"Rejected IP request {requested_ip} from {
                     client_tuple}(MAC: {mac_address})", "warning")
 
@@ -999,12 +1000,13 @@ class Server:
         mac_address = Server.get_mac_address(parsed_message)
         msg_type = Server.get_msg_type(parsed_message)
         xid = Server.get_xid(parsed_message)
-
+        print("msg_type", msg_type)
         match msg_type:
             case 1:  # DHCP Discover
                 log_message(f"Received DHCP Discover from {
                             mac_address}", "info")
                 log_message(f"Client MAC Address: {mac_address}", "info")
+                # print(client_address)
                 Server.handle_dhcp_discover(
                     parsed_message, client_address, mac_address, xid, server_socket, client_tuple)
 
@@ -1058,7 +1060,9 @@ class Server:
         while True:
 
             message, client_address = server_socket.recvfrom(1024)
+
             client_address = Server.get_client_address(client_address)
+            print(message)
             threading.Thread(target=Server.handle_client, args=(
                 message, client_address, server_socket, ip_pool_file_path, blocked_mac_addresses_file_path)).start()
 
@@ -1068,6 +1072,14 @@ class Server:
 # ====================================================================================================
 if __name__ == "__main__":
     ip_pool_file_path = os.path.join(os.getcwd(), "src/server/ip_pool.txt")
+    ip_pool = [
+        "192.168.1.100",
+        "192.168.1.101",
+        "192.168.1.102",
+        "192.168.1.103",
+        "192.168.1.104",
+    ]
+    Server.write_ip_pool(ip_pool_file_path, ip_pool)
     blocked_mac_addresses_file_path = os.path.join(
         os.getcwd(), "src/server/blocked_mac.txt")
     # Seif: a0:b3:cc:49:fc:d7
