@@ -17,7 +17,6 @@ test_cases = {
     "Specific_IP_Request_no_lease": {
         'inputs': ["192.168.1.102", None],
         'expected_output': ["192.168.1.102", "ACK", None],
-
         'pass': False
     },
     "Specific_IP_Request_with_lease": {

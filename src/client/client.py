@@ -29,7 +29,6 @@ def start_dhcp_client(mac_address=None, requested_ip=None, lease_duration=None):
 
             if xid_received != xid:
                 continue
-
             msg_type = message[242]
             if msg_type == 2:  # DHCP Offer
                 offered_ip = socket.inet_ntoa(message[16:20])
@@ -58,6 +57,7 @@ def start_dhcp_client(mac_address=None, requested_ip=None, lease_duration=None):
 
 if __name__ == "__main__":
     for i, test_case in enumerate(test_cases):
+        time.sleep(2)
         print("\033[93mtest case", i+1, test_case, "\033[0m")
         try:
             if test_case == "Wait_For_Lease":
@@ -69,7 +69,8 @@ if __name__ == "__main__":
             if test_case == "Wait_For_Lease" or test_case == "Non_Existant_IP":
                 if test_cases[test_case]['expected_output'][1:] == output[1:]:
                     test_cases[test_case]['pass'] = True
-                    print(f"\033[92mtest case {i}: {test_case} passed\033[0m")
+                    print(f"\033[92mtest case {
+                          i+1}: {test_case} passed\033[0m")
                     print("="*50)
                 else:
                     print("EXPECTED OUTPUT",
@@ -79,7 +80,8 @@ if __name__ == "__main__":
             else:
                 if test_cases[test_case]['expected_output'] == output:
                     test_cases[test_case]['pass'] = True
-                    print(f"\033[92mtest case {i}: {test_case} passed\033[0m")
+                    print(f"\033[92mtest case {
+                          i+1}: {test_case} passed\033[0m")
                     print("="*50)
                 else:
                     print("EXPECTED OUTPUT",
