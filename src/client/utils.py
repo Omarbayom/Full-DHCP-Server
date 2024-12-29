@@ -91,6 +91,7 @@ class Client:
         client_socket.sendto(final_message, ("255.255.255.255", 67))
         print(f"Sent DHCP Discover from MAC {mac_address} with requested IP {
             requested_ip}, Lease {lease_duration}")
+        return final_message
 
     @staticmethod
     def send_dhcp_request(client_socket, xid, mac_address, server_identifier, offered_ip):
