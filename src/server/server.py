@@ -404,11 +404,11 @@ class Server:
     # ====================================================================================================
     @staticmethod
     def construct_dhcp_message(
-
         xid, client_mac, msg_type, server_ip, client_ip="0.0.0.0", your_ip="0.0.0.0", gateway_ip="0.0.0.0",
         options=None, lease_time=60, subnet_mask="255.255.255.0", dns_servers=None, domain_name="example.com",
         broadcast_address=None, t1_time=0, t2_time=0, option_overload=None, time_offset=0, time_servers=None, name_servers=None,
-        log_servers=None, cookie_servers=None, lpr_servers=None, impress_servers=None, rlp_servers=None, max_message_size=1500
+        log_servers=None, cookie_servers=None, lpr_servers=None, impress_servers=None, rlp_servers=None, max_message_size=1500,
+        error_message=None
     ):
         """
         Constructs a DHCP message based on the provided parameters.
@@ -438,6 +438,7 @@ class Server:
             impress_servers (list, optional): List of impress server IP addresses. Defaults to None.
             rlp_servers (list, optional): List of RLP server IP addresses. Defaults to None.
             max_message_size (int, optional): Maximum DHCP message size. Defaults to 1500.
+            error_message (str, optional): Error message to include in the DHCP options. Defaults to None.
         Returns:
             bytes: The constructed DHCP message.
         """
@@ -448,8 +449,8 @@ class Server:
         hops = 0  # Hops: 0
         secs = 0  # Seconds elapsed: 0
         flags = 0x8000  # Broadcast flag
-        chaddr = bytes.fromhex(client_mac.replace(":", "")) + \
-            b'\x00' * 10  # Pad to 16 bytes
+        chaddr = bytes.fromhex(client_mac.replace(
+            ":", "")) + b'\x00' * 10  # Pad to 16 bytes
         sname = b'\x00' * 64  # Server name: 64 bytes, zero-padded
         file = b'\x00' * 128  # Boot filename: 128 bytes, zero-padded
 
@@ -474,7 +475,6 @@ class Server:
                 socket.inet_aton(broadcast_address)
         t1_option = b'\x3a\x04' + struct.pack('!I', t1_time)
         t2_option = b'\x3b\x04' + struct.pack('!I', t2_time)
-
         max_message_size_option = b'\x39\x02' + \
             struct.pack('!H', max_message_size)
 
@@ -523,6 +523,12 @@ class Server:
             rlp_server_option = b'\x0b' + \
                 len(rlp_list).to_bytes(1, 'big') + rlp_list
 
+        # Option 56: Error Message
+        error_message_option = b""
+        if error_message:
+            error_message_option = b'\x38' + \
+                len(error_message).to_bytes(1, 'big') + error_message.encode()
+
         # Combine all options
         additional_options = (
             lease_time_option +
@@ -542,7 +548,8 @@ class Server:
             lpr_server_option +
             impress_server_option +
             rlp_server_option +
-            max_message_size_option
+            max_message_size_option +
+            error_message_option
         )
 
         # Merge options with defaults
@@ -761,7 +768,8 @@ class Server:
             cookie_servers=["192.168.1.40"],  # Example Cookie Server
             lpr_servers=["192.168.1.50"],  # Example LPR Server
             impress_servers=["192.168.1.60"],  # Example Impress Server
-            rlp_servers=["192.168.1.70"]  # Example RLP Server
+            rlp_servers=["192.168.1.70"],  # Example RLP Server
+            error_message="Requested IP is not available."
         )
         server_socket.sendto(nak_message, client_tuple)
         # print()
@@ -1108,11 +1116,11 @@ class Server:
 if __name__ == "__main__":
     ip_pool_file_path = os.path.join(os.getcwd(), "src/server/ip_pool.txt")
     ip_pool = [
-        "192.168.1.100",
-        "192.168.1.101",
-        "192.168.1.102",
-        "192.168.1.103",
-        "192.168.1.104",
+        # "192.168.1.100",
+        # "192.168.1.101",
+        # "192.168.1.102",
+        # "192.168.1.103",
+        # "192.168.1.104",
     ]
     server = Server()
     Server.write_ip_pool(ip_pool_file_path, ip_pool)
