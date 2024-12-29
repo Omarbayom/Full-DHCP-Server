@@ -69,19 +69,24 @@ if __name__ == "__main__":
             if test_case == "Wait_For_Lease" or test_case == "Non_Existant_IP":
                 if test_cases[test_case]['expected_output'][1:] == output[1:]:
                     test_cases[test_case]['pass'] = True
-                    print("\033[92mtest case passed\033[0m")
+                    print(f"\033[92mtest case {i}: {test_case} passed\033[0m")
+                    print("="*50)
                 else:
                     print("EXPECTED OUTPUT",
                           test_cases[test_case]['expected_output'])
                     print("OUTPUT", output)
+                    print("="*50)
             else:
                 if test_cases[test_case]['expected_output'] == output:
                     test_cases[test_case]['pass'] = True
-                    print("\033[92mtest case passed\033[0m")
+                    print(f"\033[92mtest case {i}: {test_case} passed\033[0m")
+                    print("="*50)
                 else:
                     print("EXPECTED OUTPUT",
                           test_cases[test_case]['expected_output'])
                     print("OUTPUT", output)
+                    print("="*50)
         except Exception as e:
             print(e)
             print("\033[91mtest case failed\033[0m")
+            print("="*50)

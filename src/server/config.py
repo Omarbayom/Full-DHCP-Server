@@ -1,5 +1,5 @@
 import socket
-
+import logging
 # Server configuration
 SERVER_PORT = 67
 CLIENT_PORT = 68
@@ -29,3 +29,16 @@ discover_cache = {}
 # Logging configurations (Optional for better debugging)
 log_file = "dhcp_server.log"  # Path to log file
 log_level = "INFO"  # Log level: INFO, DEBUG, ERROR, etc.
+
+
+def log_message(message, level="info"):
+    if level == "info":
+        logging.info(message)
+    elif level == "debug":
+        logging.debug(message)
+    elif level == "error":
+        logging.error(message)
+    elif level == "warning":
+        logging.warning(message)
+    else:
+        logging.info(message)
