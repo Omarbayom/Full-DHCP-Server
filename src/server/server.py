@@ -1,9 +1,10 @@
+import os
 import socket
 import struct
 import threading
 import time
 import logging
-from config import ip_pool, lease_duration, server_ip, lease_table, discover_cache, log_message, blocked_mac_addresses
+from config import lease_duration, server_ip, lease_table, discover_cache, log_message
 
 
 # ====================================================================================================
@@ -189,6 +190,9 @@ class Server:
         Server.lease_table_lock = threading.Lock()
         Server.ip_pool_lock = threading.Lock()
         Server.discover_cache_lock = threading.Lock()
+        Server.ip_pool = []
+        Server.ip_pool_file_path = ""
+        Server.blocked_mac_addresses = []
         logging.basicConfig(
             level=logging.INFO,
             format="%(asctime)s - %(levelname)s - %(message)s",
@@ -221,6 +225,126 @@ class Server:
         # DHCP server listens on port 67
         server_socket.bind((server_ip, 67))
         return server_socket
+
+    # ====================================================================================================
+    # =================================== Load Ip Pool ===================================================
+    # ====================================================================================================
+    @staticmethod
+    def load_ip_pool(file_path):
+        """
+        Loads the IP pool from a text file.
+
+        Args:
+            file_path (str): The path to the text file containing the IP pool.
+
+        Returns:
+            list: A list of IP addresses.
+        """
+        with open(file_path, 'r') as file:
+            ip_pool = [line.strip() for line in file if line.strip()]
+        return ip_pool
+
+    # ====================================================================================================
+    # =================================== Append Ip Pool =================================================
+    # ====================================================================================================
+    @staticmethod
+    def append_ip_pool(file_path, ip_pool):
+        """
+        Writes the IP pool to a text file.
+
+        Args:
+            file_path (str): The path to the text file where the IP pool will be saved.
+            ip_pool (list): A list of IP addresses to be written to the file.
+        """
+        with open(file_path, 'a') as file:
+            for ip in ip_pool:
+                file.write(f"{ip}\n")
+
+    # ====================================================================================================
+    # =================================== Write Ip Pool =================================================
+    # ====================================================================================================
+    @staticmethod
+    def write_ip_pool(file_path, ip_pool):
+        """
+        Writes the IP pool to a text file from the beginning.
+
+        Args:
+            file_path (str): The path to the text file where the IP pool will be saved.
+            ip_pool (list): A list of IP addresses to be written to the file.
+        """
+        with open(file_path, 'w') as file:
+            for ip in ip_pool:
+                file.write(f"{ip}\n")
+
+    # ====================================================================================================
+    # ============================ Delete from Ip Pool ===================================================
+    # ====================================================================================================
+    @staticmethod
+    def delete_ip_from_pool(ip_address, file_path):
+        """
+        Deletes a specific IP address from the IP pool and updates the text file.
+
+        Args:
+            ip_address (str): The IP address to be deleted.
+            file_path (str): The path to the text file containing the IP pool.
+        """
+        with Server.ip_pool_lock:
+            if ip_address in Server.ip_pool:
+                Server.ip_pool.remove(ip_address)
+                Server.append_ip_pool(file_path, Server.ip_pool)
+                log_message(f"Deleted IP address {
+                            ip_address} from the IP pool.", "info")
+            else:
+                log_message(
+                    f"IP address {ip_address} not found in the IP pool.", "warning")
+
+    # ====================================================================================================
+    # =================================== Load Ip Pool ===================================================
+    # ====================================================================================================
+
+    @staticmethod
+    def load_blocked_mac_addresses(file_path):
+        """
+        Loads the IP pool from a text file.
+
+        Args:
+            file_path (str): The path to the text file containing the IP pool.
+
+        Returns:
+            list: A list of IP addresses.
+        """
+        with open(file_path, 'r') as file:
+            blocked_mac_addresses = [line.strip()
+                                     for line in file if line.strip()]
+        return blocked_mac_addresses
+
+    # ====================================================================================================
+    # ================================ Block Client's MAC Address ========================================
+    # ====================================================================================================
+    @staticmethod
+    def dhcp_block_client(mac_address):
+        Server.blocked_mac_addresses.add(mac_address)
+
+    # ====================================================================================================
+    # ================================ UnBlock Client's MAC Address ======================================
+    # ====================================================================================================
+    @staticmethod
+    def dhcp_unblock_client(mac_address):
+        if mac_address in Server.blocked_mac_addresses:
+            Server.blocked_mac_addresses.remove(mac_address)
+        else:
+            log_message(f"Client with MAC address {
+                        mac_address} is not blocked.", "warning")
+
+    # ====================================================================================================
+    # ========================================= Send Blocked NACK ========================================
+    # ====================================================================================================
+    @staticmethod
+    def dhcp_send_block_nack(xid, mac_address, server_socket, client_tuple):
+        Server.dhcp_send_nack(
+            xid, mac_address, server_socket, client_tuple)
+        log_message(
+            f"Client with MAC address {mac_address} is blocked.", "warning")
 
     # ====================================================================================================
     # ============================ Get the client's MAC Address ==========================================
@@ -552,7 +676,9 @@ class Server:
 
                     # Return the IP to the pool
                     with Server.ip_pool_lock:
-                        ip_pool.append(ip)
+                        Server.ip_pool.append(ip)
+                        Server.write_ip_pool(
+                            Server.ip_pool_file_path, Server.ip_pool)
 
                     log_message(f"Lease expired: Released IP {
                         ip} for client(MAC: {mac_address})(XID: {xid})", "info")
@@ -625,10 +751,10 @@ class Server:
     @staticmethod
     def dhcp_send_offer(requested_ip, requested_lease, xid, client_address, mac_address, server_socket, client_tuple):
         with Server.ip_pool_lock:
-            if requested_ip and requested_ip in ip_pool:
+            if requested_ip and requested_ip in Server.ip_pool:
                 with Server.lease_table_lock:
                     lease_table[mac_address] = (
-                        requested_ip, time.time() + requested_lease, xid)
+                        requested_ip, time.time() + 2, xid)
                 log_message(f"Offering Requested IP {requested_ip} to {client_address}(MAC: {
                     mac_address}) with lease duration {requested_lease} seconds", "info")
 
@@ -668,34 +794,6 @@ class Server:
                     server_socket.sendto(nak_message, client_tuple)
 
     # ====================================================================================================
-    # ================================ Block Client's MAC Address ========================================
-    # ====================================================================================================
-    @staticmethod
-    def dhcp_block_client(mac_address):
-        blocked_mac_addresses.add(mac_address)
-
-    # ====================================================================================================
-    # ================================ UnBlock Client's MAC Address ======================================
-    # ====================================================================================================
-    @staticmethod
-    def dhcp_unblock_client(mac_address):
-        if mac_address in blocked_mac_addresses:
-            blocked_mac_addresses.remove(mac_address)
-        else:
-            log_message(f"Client with MAC address {
-                        mac_address} is not blocked.", "warning")
-
-    # ====================================================================================================
-    # ========================================= Send Blocked NACK ========================================
-    # ====================================================================================================
-    @staticmethod
-    def dhcp_send_block_nack(xid, mac_address, server_socket, client_tuple):
-        Server.dhcp_send_nack(
-            xid, mac_address, server_socket, client_tuple)
-        log_message(
-            f"Client with MAC address {mac_address} is blocked.", "warning")
-
-    # ====================================================================================================
     # ======================== Handling DISCOVER Message Type (1) ========================================
     # ====================================================================================================
     @staticmethod
@@ -705,12 +803,12 @@ class Server:
         requested_ip = None
         requested_lease = lease_duration
 
-        if mac_address in blocked_mac_addresses:
+        if mac_address in Server.blocked_mac_addresses:
             Server.dhcp_send_block_nack(
                 xid, mac_address, server_socket, client_tuple)
             return
 
-        if not ip_pool and (mac_address not in lease_table.keys()):
+        if not Server.ip_pool and (mac_address not in lease_table.keys()):
             log_message(
                 "IP pool is empty. Cannot assign IP to client.", "warning")
             Server.dhcp_send_nack(
@@ -729,15 +827,15 @@ class Server:
                 log_message(f"Requested Lease Duration: {
                     requested_lease} seconds", "info")
 
-        if requested_ip and requested_ip not in ip_pool:
+        if requested_ip and requested_ip not in Server.ip_pool:
             log_message(
                 f"Requested IP {requested_ip} is not available.", "warning")
             if mac_address not in lease_table.keys():
                 pass
-            requested_ip = ip_pool[0]
+            requested_ip = Server.ip_pool[0]
 
         if not requested_ip:
-            requested_ip = ip_pool[0]
+            requested_ip = Server.ip_pool[0]
         # Save the Discover message options for later use in Request
         with Server.discover_cache_lock:
             discover_cache[mac_address] = {
@@ -756,7 +854,7 @@ class Server:
     def handle_dhcp_request(parsed_message, client_address, mac_address, xid, server_socket, client_tuple):
         requested_lease = lease_duration
 
-        if mac_address in blocked_mac_addresses:
+        if mac_address in Server.blocked_mac_addresses:
             Server.dhcp_send_block_nack(
                 xid, mac_address, server_socket, client_tuple)
             return
@@ -785,8 +883,8 @@ class Server:
                     requested_lease, lease_table[mac_address][2]
                 )
                 with Server.ip_pool_lock:
-                    if requested_ip in ip_pool:
-                        ip_pool.remove(requested_ip)
+                    if requested_ip in Server.ip_pool:
+                        Server.ip_pool.remove(requested_ip)
                 Server.dhcp_send_ack(
                     xid, mac_address, server_socket, client_tuple, requested_ip, requested_lease)
                 log_message(f"Assigned IP {requested_ip} to(MAC: {
@@ -876,7 +974,7 @@ class Server:
     # ====================================================================================================
     @staticmethod
     # Handles incoming DHCP messages from clients
-    def handle_client(message, client_address, server_socket):
+    def handle_client(message, client_address, server_socket, ip_pool_file_path, blocked_mac_addresses_file_path):
         """
         Handles incoming DHCP messages from clients and responds accordingly.
         Parameters:
@@ -892,6 +990,10 @@ class Server:
         The function uses several locks to ensure thread-safe access to shared resources like
         the IP pool, lease table, and discover cache.
         """
+        Server.ip_pool = Server.load_ip_pool(ip_pool_file_path)
+        Server.blocked_mac_addresses = Server.load_blocked_mac_addresses(
+            blocked_mac_addresses_file_path)
+        # print(Server.ip_pool)
         parsed_message = Server.parse_dhcp_message(message)
         client_tuple = Server.get_client_tuple(client_address)
         mac_address = Server.get_mac_address(parsed_message)
@@ -926,10 +1028,12 @@ class Server:
                 log_message(f"invalid message type from {
                             client_tuple} (MAC: {mac_address}", "warning")
 
+        Server.write_ip_pool(ip_pool_file_path, Server.ip_pool)
+
     # ====================================================================================================
     # ============================== Starting the DHCP Agent =============================================
     # ====================================================================================================
-    def start_dhcp_server(self):
+    def start_dhcp_server(self, ip_pool_file_path, blocked_mac_addresses_file_path):
         """
         Starts the DHCP server.
         This method sets up a UDP socket for the DHCP server, logs the server start,
@@ -943,6 +1047,7 @@ class Server:
         Raises:
             Exception: If there is an error setting up the socket or handling client messages.
         """
+        Server.ip_pool_file_path = ip_pool_file_path
         server_socket = Server.setup_socket()
         log_message(f"DHCP Server started on {
             server_ip}, waiting for clients...", "info")
@@ -951,19 +1056,25 @@ class Server:
         threading.Thread(target=Server.lease_expiry_checker,
                          daemon=True).start()
         while True:
+
             message, client_address = server_socket.recvfrom(1024)
             client_address = Server.get_client_address(client_address)
             threading.Thread(target=Server.handle_client, args=(
-                message, client_address, server_socket)).start()
+                message, client_address, server_socket, ip_pool_file_path, blocked_mac_addresses_file_path)).start()
 
 
 # ====================================================================================================
 # ========================================= MAIN =====================================================
 # ====================================================================================================
 if __name__ == "__main__":
+    ip_pool_file_path = os.path.join(os.getcwd(), "src/server/ip_pool.txt")
+    blocked_mac_addresses_file_path = os.path.join(
+        os.getcwd(), "src/server/blocked_mac.txt")
+    # Seif: a0:b3:cc:49:fc:d7
     try:
         server = Server()
-        server.start_dhcp_server()
+        server.start_dhcp_server(ip_pool_file_path=ip_pool_file_path,
+                                 blocked_mac_addresses_file_path=blocked_mac_addresses_file_path)
     except KeyboardInterrupt:
         log_message(
             "\033[91mKEYBOARD INTERRUPT DHCP Server stopped\033[0m", "info")
