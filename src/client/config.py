@@ -41,6 +41,7 @@ test_cases = {
     "Wait_For_Lease": {
         'inputs': [None, 30],
         'expected_output': ["", "ACK", 30],
+        'pass': False
     },
     "Non_Existant_IP": {
         'inputs': ["192.168.1.115", 30],

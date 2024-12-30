@@ -55,6 +55,45 @@ def start_dhcp_client(mac_address=None, requested_ip=None, lease_duration=None):
         client_socket.close()
 
 
+def start_dhcp_client_test(mac_address=None, requested_ip=None, lease_duration=None):
+    for i, test_case in enumerate(test_cases):
+        time.sleep(1)
+        print("\033[93mtest case", i+1, test_case, "\033[0m")
+        try:
+            if test_case == "Wait_For_Lease":
+                time.sleep(31)
+            requested_ip, lease_duration = test_cases[test_case]['inputs']
+            output = start_dhcp_client(requested_ip=requested_ip,
+                                       lease_duration=lease_duration)
+
+            if test_case == "Wait_For_Lease" or test_case == "Non_Existant_IP":
+                if test_cases[test_case]['expected_output'][1:] == output[1:]:
+                    test_cases[test_case]['pass'] = True
+                    print(f"\033[92mtest case {
+                          i+1}: {test_case} passed\033[0m")
+                    print("="*50)
+                else:
+                    print("EXPECTED OUTPUT",
+                          test_cases[test_case]['expected_output'])
+                    print("OUTPUT", output)
+                    print("="*50)
+            else:
+                if test_cases[test_case]['expected_output'] == output:
+                    test_cases[test_case]['pass'] = True
+                    print(f"\033[92mtest case {
+                          i+1}: {test_case} passed\033[0m")
+                    print("="*50)
+                else:
+                    print("EXPECTED OUTPUT",
+                          test_cases[test_case]['expected_output'])
+                    print("OUTPUT", output)
+                    print("="*50)
+        except Exception as e:
+            print(e)
+            print("\033[91mtest case failed\033[0m")
+            print("="*50)
+
+
 if __name__ == "__main__":
     for i, test_case in enumerate(test_cases):
         time.sleep(2)
