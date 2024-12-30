@@ -61,8 +61,9 @@ class DHCPServerGUI:
 
         try:
             # Load the image
-            self.server_image = Image.open(
-                os.path.join(os.path.curdir, "utils/server.png"))
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            image_path = os.path.join(script_dir, "server.png")
+            self.server_image = Image.open(image_path)
 
             # Resize the image for better fitting
             self.server_image = self.server_image.resize((215, 215))

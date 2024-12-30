@@ -42,10 +42,12 @@ class DHCPServerGUI:
         center_frame.pack(expand=True)
 
         try:
-            server_image = Image.open(os.path.join(
-                os.path.curdir, "utils/client.png"))
-            server_image = server_image.resize((215, 215))
-            self.server_image = ImageTk.PhotoImage(server_image)
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            image_path = os.path.join(script_dir, "client.png")
+            self.server_image = Image.open(image_path)
+            # Resize the image for better fitting
+            self.server_image = self.server_image.resize((215, 215))
+            self.server_image = ImageTk.PhotoImage(self.server_image)
             CTkLabel(center_frame, image=self.server_image,
                      text="").pack(pady=10)
         except Exception as e:
