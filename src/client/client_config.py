@@ -17,7 +17,6 @@ test_cases = {
     "Specific_IP_Request_no_lease": {
         'inputs': ["192.168.1.102", None],
         'expected_output': ["192.168.1.102", "ACK", None],
-
         'pass': False
     },
     "Specific_IP_Request_with_lease": {
@@ -42,6 +41,7 @@ test_cases = {
     "Wait_For_Lease": {
         'inputs': [None, 30],
         'expected_output': ["", "ACK", 30],
+        'pass': False
     },
     "Non_Existant_IP": {
         'inputs': ["192.168.1.115", 30],
@@ -50,10 +50,29 @@ test_cases = {
         'pass': False
     },
 
-    # "RELEASE_IP": {
-    #     'inputs': [None, None],
-    #     'expected_output': ["192.169.1.100", "ACK", 60],
-
-    #     'pass': False
-    # },
 }
+# "RELEASE_IP": {
+#     'inputs': [None, None],
+#     'expected_output': ["192.169.1.100", "ACK", 60],
+
+#     'pass': False
+# },
+
+# test_cases = {
+#     "Non_Existant_IP": {
+#         'inputs': ["192.168.1.115", 30],
+#         'expected_output': ["", "ACK", 30],
+
+#         'pass': False
+#     },
+#     "Decline_Request": {
+#         'inputs': ["192.168.1.100", 30],
+#         'expected_output': ["192.168.1.100", "ACK", 30],
+#         'pass': False
+#     },
+#     "Decline_Test": {
+#         'inputs': ["192.168.1.100", 30, 'DECLINE'],
+#         'expected_output': None,
+#         'pass': False
+#     },
+# }

@@ -86,7 +86,7 @@ class Client:
         if lease_duration:
             options_dict[51] = lease_duration.to_bytes(
                 4, byteorder='big')  # Lease Time
-        print(f"\033[92m{lease_duration}\033[0m")
+        # print(f"\033[92m{lease_duration}\033[0m")
         final_message = Client.append_dhcp_options(message, options_dict)
         client_socket.sendto(final_message, ("255.255.255.255", 67))
         print(f"Sent DHCP Discover from MAC {mac_address} with requested IP {
@@ -120,6 +120,7 @@ class Client:
 
         final_message = Client.append_dhcp_options(message, options_dict)
         client_socket.sendto(final_message, ("255.255.255.255", 67))
+        # print(final_message)
         print(f"Sent DHCP Request for IP {
             offered_ip} to Server {server_identifier}")
 
@@ -151,3 +152,60 @@ class Client:
         client_socket.sendto(final_message, ("255.255.255.255", 67))
         print(f"Sent DHCP Release for IP {
             leased_ip} to Server {server_identifier}")
+
+    @staticmethod
+    def send_dhcp_decline(client_socket, xid, mac_address, server_identifier, declined_ip):
+        """Send a DHCP Decline message."""
+        mac_bytes = bytes.fromhex(mac_address.replace(":", ""))
+
+        message = Client.create_dhcp_message(
+            op=1,
+            htype=1,
+            hlen=6,
+            hops=0,
+            xid=xid,
+            flags=0x8000,
+            ciaddr=0,
+            yiaddr=0,
+            siaddr=0,
+            giaddr=0,
+            mac_bytes=mac_bytes
+        )
+
+        options_dict = {
+            53: b"\x04",  # DHCP Decline
+            54: socket.inet_aton(server_identifier),  # Server Identifier
+            50: socket.inet_aton(declined_ip)  # Declined IP Address
+        }
+
+        final_message = Client.append_dhcp_options(message, options_dict)
+        client_socket.sendto(final_message, ("255.255.255.255", 67))
+        print(f"Sent DHCP Decline for IP {
+              declined_ip} to Server {server_identifier}")
+
+    @staticmethod
+    def send_dhcp_inform(client_socket, xid, mac_address, client_ip):
+        """Send a DHCP Inform message."""
+        mac_bytes = bytes.fromhex(mac_address.replace(":", ""))
+
+        message = Client.create_dhcp_message(
+            op=1,
+            htype=1,
+            hlen=6,
+            hops=0,
+            xid=xid,
+            flags=0x0000,  # No broadcast flag
+            ciaddr=socket.inet_aton(client_ip),  # Client's configured IP
+            yiaddr=0,
+            siaddr=0,
+            giaddr=0,
+            mac_bytes=mac_bytes
+        )
+
+        options_dict = {
+            53: b"\x08",  # DHCP Inform
+        }
+
+        final_message = Client.append_dhcp_options(message, options_dict)
+        client_socket.sendto(final_message, ("255.255.255.255", 67))
+        print(f"Sent DHCP Inform from IP {client_ip} and MAC {mac_address}")
