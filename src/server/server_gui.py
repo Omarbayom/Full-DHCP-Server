@@ -4,8 +4,11 @@ import time
 from server import Server
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
-from tkinter import Tk, Label, Button, Frame, Toplevel, Text
-from tkinter import ttk, messagebox
+import customtkinter as ctk
+from tkinter import messagebox
+# from customtkinter import
+import tkinter.ttk as ttk
+
 from tkinter.simpledialog import askstring
 from PIL import Image, ImageTk
 import os
@@ -35,36 +38,54 @@ class DHCPServerGUI:
 
         # Add protocol handler for window close event
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
-
+        self.style = ttk.Style()
+        self.style.theme_use('clam')
+        self.style.configure("Treeview",
+                             background="#333333",
+                             foreground="lightgreen",
+                             fieldbackground="black",
+                             font=("Arial", 10))
+        self.style.configure("Treeview.Heading",
+                             background="#333333",
+                             foreground="green",
+                             font=("Arial", 10, "bold"))
+        self.style.map("Treeview",
+                       background=[("selected", "green")])
         # Initial Frame (Phase 1)
-        self.main_frame = Frame(self.root)
+        self.main_frame = ctk.CTkFrame(self.root)
         self.main_frame.pack(fill="both", expand=True)
 
         # Create a frame to center both the image and the button vertically and horizontally
-        center_frame = Frame(self.main_frame)
+        center_frame = ctk.CTkFrame(self.main_frame)
         center_frame.pack(expand=True)
 
-        # Server Image using PIL to load jpg
         try:
+            # Load the image
             self.server_image = Image.open(
                 os.path.join(os.path.curdir, "utils/server.png"))
-            self.server_image = self.server_image.resize(
-                (215, 215))  # Resize for better fitting
+
+            # Resize the image for better fitting
+            self.server_image = self.server_image.resize((215, 215))
+
+            # Convert the image to PhotoImage format for Tkinter compatibility
             self.server_image = ImageTk.PhotoImage(self.server_image)
-            self.image_label = Label(center_frame, image=self.server_image)
+
+            # Create a Label widget and display the image
+            self.image_label = ctk.CTkLabel(
+                center_frame, image=self.server_image, text="")
             self.image_label.pack(pady=10)
         except Exception as e:
             print(f"Error loading image: {e}")
 
         # Modify Server Button (Phase 1)
-        self.modify_button = Button(
-            center_frame, text="Modify Server", font=("Helvetica", 18, "bold"), bg="#4CAF50", fg="white",
-            padx=20, pady=10, command=self.show_modify_window
+        self.modify_button = ctk.CTkButton(
+            center_frame, text="Modify Server", font=("Helvetica", 18, "bold"), fg_color="#4CAF50", text_color="white",
+            command=self.show_modify_window
         )
         self.modify_button.pack(pady=10)
 
         # Frame for Modify Server (Phase 2 - Initially Hidden)
-        self.modify_frame = Frame(self.root)
+        self.modify_frame = ctk.CTkFrame(self.root)
         self.table = None
         self.add_button = None
         self.delete_button = None
@@ -95,25 +116,25 @@ class DHCPServerGUI:
 
         # Create Add/Delete/Back buttons
         if self.add_button is None:
-            button_frame = Frame(self.modify_frame)
+            button_frame = ctk.CTkFrame(self.modify_frame)
             button_frame.pack(pady=10)
 
-            self.add_button = Button(
-                button_frame, text="+", font=("Helvetica", 14), command=self.add_ip, width=4)
+            self.add_button = ctk.CTkButton(
+                button_frame, text="+", font=("Helvetica", 14), command=self.add_ip, width=4, fg_color="#4CAF50", text_color="white")
             self.add_button.pack(side="left", padx=5)
 
-            self.delete_button = Button(
-                button_frame, text="-", font=("Helvetica", 14), command=self.delete_ip, width=4)
+            self.delete_button = ctk.CTkButton(
+                button_frame, text="-", font=("Helvetica", 14), command=self.delete_ip, width=4, fg_color="#4CAF50", text_color="white")
             self.delete_button.pack(side="left", padx=5)
 
-            self.back_button = Button(button_frame, text="Back", font=(
-                "Helvetica", 15), command=self.show_main_window, width=5)
+            self.back_button = ctk.CTkButton(button_frame, text="Back", font=(
+                "Helvetica", 15), command=self.show_main_window, width=5, fg_color="#4CAF50", text_color="white")
             self.back_button.pack(side="left", padx=5)
 
             # Add the Start Server Button
-            self.start_button = Button(
-                self.modify_frame, text="Start Server", font=("Helvetica", 14, "bold"), bg="#008CBA", fg="white",
-                padx=20, pady=10, command=self.start_server, width=20
+            self.start_button = ctk.CTkButton(
+                self.modify_frame, text="Start Server", font=("Helvetica", 14, "bold"),
+                command=self.start_server, width=20, fg_color="#4CAF50", text_color="white"
             )
             self.start_button.pack(pady=10)
 
@@ -131,11 +152,11 @@ class DHCPServerGUI:
 
             # Update log text widget
             if hasattr(self, 'log_text'):
-                self.log_text.config(state="normal")
+                self.log_text.configure(state="normal")
                 self.log_text.delete(1.0, "end")
                 self.log_text.insert("end", content)
                 self.log_text.see("end")
-                self.log_text.config(state="disabled")
+                self.log_text.configure(state="disabled")
 
         except Exception as e:
             print(f"Error updating log display: {e}")
@@ -155,24 +176,27 @@ class DHCPServerGUI:
         print(f"Server started: {self.server_started}")
 
         # Replace Start Server button with Terminate Server button
-        self.start_button.config(
-            text="Terminate Server", bg="red", command=self.terminate_server)
+        self.start_button.configure(
+            text="Terminate Server", fg_color="red", command=self.terminate_server)
 
         # Create a new window to show logs
-        self.log_window = Toplevel(self.root)
+        self.log_window = ctk.CTkToplevel(self.root)
         self.log_window.title("DHCP Server Logs")
         self.log_window.geometry("800x400")
 
         # Create a text widget to show logs
-        self.log_text = Text(self.log_window, wrap="word",
-                             height=40, width=130, bg="white", fg="black")
-        self.log_text.pack(padx=10, pady=10)
+        log_frame = ctk.CTkFrame(self.log_window)
+        log_frame.pack(fill="both", expand=True, padx=10, pady=10)
+
+        self.log_text = ctk.CTkTextbox(log_frame, wrap="word",
+                                       height=750, width=800, fg_color="black", text_color="white")
+        self.log_text.pack(side="left", fill="both", expand=True)
 
         # Make the log window close behave like the "Terminate" button
         self.log_window.protocol("WM_DELETE_WINDOW", self.terminate_server)
 
         # Disable the text widget to make it read-only
-        self.log_text.config(state="disabled")
+        self.log_text.configure(state="disabled")
 
         # Set up the file system observer
         self.observer = Observer()
@@ -186,8 +210,8 @@ class DHCPServerGUI:
 
         # Initial log display
         self.update_log_display()
-        # Start a thread to continuously update the log display
 
+        # Start a thread to continuously update the log display
         def continuous_log_update():
             while self.server_started:
                 self.update_log_display()
@@ -223,8 +247,8 @@ class DHCPServerGUI:
             self.observer.join()
             self.observer = None
 
-        self.start_button.config(
-            text="Start Server", bg="#008CBA", command=self.start_server)
+        self.start_button.configure(
+            text="Start Server", fg_color="#008CBA", command=self.start_server)
 
         # Close the log window if it's open
         if hasattr(self, 'log_window') and self.log_window.winfo_exists():
@@ -299,6 +323,11 @@ class DHCPServerGUI:
 
 
 if __name__ == "__main__":
-    root = Tk()
+    # Modes: "System" (default), "Dark", "Light"
+    ctk.set_appearance_mode("System")
+    # Themes: "blue" (default), "green", "dark-blue"
+    ctk.set_default_color_theme("blue")
+
+    root = ctk.CTk()
     app = DHCPServerGUI(root)
     root.mainloop()
