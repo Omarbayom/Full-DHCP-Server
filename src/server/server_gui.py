@@ -1,12 +1,13 @@
+from threading import Thread
+import time
+from server import Server
+from watchdog.events import FileSystemEventHandler
+from watchdog.observers import Observer
 from tkinter import Tk, Label, Button, Frame, Toplevel, Text
 from tkinter import ttk, messagebox
 from tkinter.simpledialog import askstring
 from PIL import Image, ImageTk
-import threading
-import time
 import os
-from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler
 
 
 class LogFileHandler(FileSystemEventHandler):
@@ -20,6 +21,7 @@ class LogFileHandler(FileSystemEventHandler):
 
 
 class DHCPServerGUI:
+
     def __init__(self, root):
         self.ip_list = []  # Stores the IP addresses in the table
         self.root = root
@@ -77,7 +79,8 @@ class DHCPServerGUI:
             self.table.heading("IP Address", text="IP Address")
             self.table.column("#", width=40, anchor="center")
             self.table.column("IP Address", width=150, anchor="w")
-            default_ips = ["192.168.1.001", "192.168.1.002", "192.168.1.003"]
+            default_ips = Server.load_ip_pool(os.path.join(
+                os.getcwd(), "src/server/ip_pool.txt"))
             for idx, ip in enumerate(default_ips, start=1):
                 self.table.insert("", "end", values=(idx, ip))
                 self.ip_list.append(ip)
@@ -108,16 +111,25 @@ class DHCPServerGUI:
             self.start_button.pack(pady=10)
 
     def update_log_display(self):
-        """Update the log display when file changes are detected"""
+        """Update the log display when file changes are detected."""
         try:
-            if hasattr(self, 'log_text') and os.path.exists("server_logs.txt"):
-                with open("server_logs.txt", "r") as log_file:
-                    content = log_file.read()
-                    self.log_text.config(state="normal")
-                    self.log_text.delete(1.0, "end")
-                    self.log_text.insert("end", content)
-                    self.log_text.see("end")
-                    self.log_text.config(state="disabled")
+            log_file_path = os.path.join(os.getcwd(), "output/log_history.log")
+            if not os.path.exists(log_file_path):
+                print("Log file does not exist yet.")
+                return
+
+            # Read log file content
+            with open(log_file_path, "r") as log_file:
+                content = log_file.read()
+
+            # Update log text widget
+            if hasattr(self, 'log_text'):
+                self.log_text.config(state="normal")
+                self.log_text.delete(1.0, "end")
+                self.log_text.insert("end", content)
+                self.log_text.see("end")
+                self.log_text.config(state="disabled")
+
         except Exception as e:
             print(f"Error updating log display: {e}")
 
@@ -127,6 +139,7 @@ class DHCPServerGUI:
                 "Error", "Cannot start server. No IPs are present.")
             return
 
+        Thread(target=Server.main).start()
         self.server_started = True
         print(f"Server started: {self.server_started}")
 
@@ -152,13 +165,26 @@ class DHCPServerGUI:
 
         # Set up the file system observer
         self.observer = Observer()
+        log_dir = os.path.dirname(os.path.join(
+            os.getcwd(), "output/log_history.log"))
+        if not os.path.exists(log_dir):
+            os.makedirs(log_dir)  # Create directory if it doesn't exist
         event_handler = LogFileHandler(self.update_log_display)
-        self.observer.schedule(event_handler, path=os.path.dirname(os.path.abspath("server_logs.txt")) or ".",
-                               recursive=False)
+        self.observer.schedule(event_handler, path=log_dir, recursive=False)
         self.observer.start()
 
         # Initial log display
         self.update_log_display()
+        # Start a thread to continuously update the log display
+
+        def continuous_log_update():
+            while self.server_started:
+                self.update_log_display()
+                time.sleep(1)  # Update every second
+
+        Thread(target=continuous_log_update, daemon=True).start()
+
+        # Run the server script
 
     def terminate_server(self):
         self.server_started = False
@@ -185,6 +211,8 @@ class DHCPServerGUI:
             if ip_to_remove in self.ip_list:
                 self.ip_list.remove(ip_to_remove)
             self.update_indexes()
+            Server.write_ip_pool(os.path.join(
+                os.getcwd(), "src/server/ip_pool.txt"), self.ip_list)
             print("IP List Updated:", self.ip_list)
         else:
             messagebox.showwarning(
@@ -208,10 +236,11 @@ class DHCPServerGUI:
                 messagebox.showwarning("Duplicate IP", f"The IP address {
                                        ip} already exists.")
                 return
-
             current_row_count = len(self.table.get_children())
             self.table.insert("", "end", values=(current_row_count + 1, ip))
             self.ip_list.append(ip)
+            Server.write_ip_pool(os.path.join(
+                os.getcwd(), "src/server/ip_pool.txt"), self.ip_list)
             print("IP List Updated:", self.ip_list)
 
     def is_valid_ip(self, ip):

@@ -1,11 +1,16 @@
-import os
-import socket
-import struct
-import threading
-import time
+import server_config as config
+import sys
 import logging
-from config import lease_duration, server_ip, lease_table, discover_cache, log_message
+import time
+import threading
+import struct
+import socket
+import os
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(os.path.dirname(current_dir))
+sys.path.append(parent_dir)
 
+lease_duration, server_ip, lease_table, discover_cache, log_message = config.lease_duration, config.server_ip, config.lease_table, config.discover_cache, config.log_message
 
 # ====================================================================================================
 # ====================================================================================================
@@ -16,8 +21,8 @@ from config import lease_duration, server_ip, lease_table, discover_cache, log_m
 |------------------|---------------|
 | Omar Ahmed       | 22P0109       |
 | Seif Yasser      | 21P0102       |
-| Mohammed Salah   | 21Pxxxx       |
-| Youssef Tamer    | 21Pxxxx       |
+| Mohammed Salah   | 21P0117       |
+| Youssef Tamer    | 21P0138       |
 +----------------------------------+
 """
 
@@ -1108,6 +1113,28 @@ class Server:
             # except KeyboardInterrupt:
             #     log_message(
             #         "\033[91mKEYBOARD INTERRUPT DHCP Server stopped\033[0m", "info")
+
+    @staticmethod
+    def main():
+        ip_pool_file_path = os.path.join(os.getcwd(), "src/server/ip_pool.txt")
+        ip_pool = [
+            # "192.168.1.100",
+            # "192.168.1.101",
+            # "192.168.1.102",
+            # "192.168.1.103",
+            # "192.168.1.104",
+        ]
+        server = Server()
+        Server.write_ip_pool(ip_pool_file_path, ip_pool)
+        blocked_mac_addresses_file_path = os.path.join(
+            os.getcwd(), "src/server/blocked_mac.txt")
+        # Seif: a0:b3:cc:49:fc:d7
+        try:
+            server.start_dhcp_server(ip_pool_file_path=ip_pool_file_path,
+                                     blocked_mac_addresses_file_path=blocked_mac_addresses_file_path)
+        except KeyboardInterrupt:
+            log_message(
+                "\033[91mKEYBOARD INTERRUPT DHCP Server stopped\033[0m", "info")
 
 
 # ====================================================================================================
