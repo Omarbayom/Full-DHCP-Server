@@ -1,3 +1,4 @@
+import sys
 from threading import Thread
 import time
 from server import Server
@@ -31,6 +32,9 @@ class DHCPServerGUI:
 
         self.server_started = False  # Flag to track if the server is running
         self.observer = None  # File system observer
+
+        # Add protocol handler for window close event
+        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
 
         # Initial Frame (Phase 1)
         self.main_frame = Frame(self.root)
@@ -66,6 +70,9 @@ class DHCPServerGUI:
         self.delete_button = None
         self.back_button = None
         self.start_button = None
+
+    def on_closing(self):
+        os._exit(0)
 
     def show_modify_window(self):
         self.main_frame.pack_forget()
@@ -113,7 +120,7 @@ class DHCPServerGUI:
     def update_log_display(self):
         """Update the log display when file changes are detected."""
         try:
-            log_file_path = os.path.join(os.getcwd(), "output/log_history.log")
+            log_file_path = os.path.join(os.getcwd(), "output/log.log")
             if not os.path.exists(log_file_path):
                 print("Log file does not exist yet.")
                 return
@@ -134,6 +141,7 @@ class DHCPServerGUI:
             print(f"Error updating log display: {e}")
 
     def start_server(self):
+        self.log_cleaner()
         Server.write_ip_pool(os.path.join(
             os.getcwd(), "src/server/ip_pool.txt"), self.ip_list)
 
@@ -169,7 +177,7 @@ class DHCPServerGUI:
         # Set up the file system observer
         self.observer = Observer()
         log_dir = os.path.dirname(os.path.join(
-            os.getcwd(), "output/log_history.log"))
+            os.getcwd(), "output/log.log"))
         if not os.path.exists(log_dir):
             os.makedirs(log_dir)  # Create directory if it doesn't exist
         event_handler = LogFileHandler(self.update_log_display)
@@ -188,6 +196,22 @@ class DHCPServerGUI:
         Thread(target=continuous_log_update, daemon=True).start()
 
         # Run the server script
+
+    def log_cleaner(self):
+        log_file_path = os.path.join(os.getcwd(), "output/log.log")
+        backup_log_file_path = os.path.join(
+            os.getcwd(), "output/log_history.log")
+
+        # Copy contents to backup file
+        with open(log_file_path, "r") as log_file:
+            content = log_file.read()
+
+        with open(backup_log_file_path, "w") as backup_log_file:
+            backup_log_file.write(content)
+
+        # Empty the original log file
+        with open(log_file_path, "w") as log_file:
+            log_file.write("")
 
     def terminate_server(self):
         self.server_started = False

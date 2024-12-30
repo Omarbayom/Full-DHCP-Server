@@ -204,7 +204,7 @@ class Server:
             level=logging.INFO,
             format="%(asctime)s - %(levelname)s - %(message)s",
             handlers=[
-                logging.FileHandler("output/log_history.log"),
+                logging.FileHandler("output/log.log"),
                 logging.StreamHandler()
             ]
         )
