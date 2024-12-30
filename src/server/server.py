@@ -192,11 +192,13 @@ class Server:
             ip_pool_lock (threading.Lock): Lock for synchronizing access to the IP pool.
             discover_cache_lock (threading.Lock): Lock for synchronizing access to the discover cache.
         """
+        # self.ip_pool_file_path
         Server.lease_table_lock = threading.Lock()
         Server.ip_pool_lock = threading.Lock()
         Server.discover_cache_lock = threading.Lock()
         Server.ip_pool = []
-        Server.ip_pool_file_path = ""
+        Server.ip_pool_file_path = os.path.join(
+            os.getcwd(), "src/server/ip_pool.txt")
         Server.blocked_mac_addresses = []
         logging.basicConfig(
             level=logging.INFO,
@@ -749,7 +751,8 @@ class Server:
         )
         server_socket.sendto(ack_message, client_tuple)
         with Server.ip_pool_lock:
-            Server.write_ip_pool(ip_pool_file_path, list(Server.ip_pool))
+            Server.write_ip_pool(Server.ip_pool_file_path,
+                                 list(Server.ip_pool))
 
     # ====================================================================================================
     # =============================== Sending NACK Message ===============================================
@@ -1043,14 +1046,14 @@ class Server:
                 log_message(f"Received DHCP Discover from {
                             mac_address}", "info")
                 log_message(f"Client MAC Address: {mac_address}", "info")
-                print("in the discover branch", Server.ip_pool)
+                # print("in the discover branch", Server.ip_pool)
                 Server.handle_dhcp_discover(
                     parsed_message, client_address, mac_address, xid, server_socket, client_tuple)
 
             case 3:  # DHCP Request
                 Server.handle_dhcp_request(
                     parsed_message, client_address, mac_address, xid, server_socket, client_tuple)
-                print("in the request branch", Server.ip_pool)
+                # print("in the request branch", Server.ip_pool)
 
                 # print("ip pool after request", Server.ip_pool)
             case 4:  # DHCP Decline
@@ -1058,13 +1061,13 @@ class Server:
                 log_message(f"Received DHCP Decline for IP {
                             declined_ip} from {client_address}", "info")
                 Server.handle_dhcp_decline(mac_address, declined_ip)
-                print("in the decline branch", Server.ip_pool)
+                # print("in the decline branch", Server.ip_pool)
             case 7:  # DHCP Release
                 Server.handle_dhcp_release(mac_address)
-                print("in the release branch", Server.ip_pool)
+                # print("in the release branch", Server.ip_pool)
             case 8:
                 Server.handle_dhcp_inform()
-                print("in the inform branch", Server.ip_pool)
+                # print("in the inform branch", Server.ip_pool)
             case _:
                 log_message(f"invalid message type from {
                             client_tuple} (MAC: {mac_address}", "warning")
@@ -1104,7 +1107,7 @@ class Server:
 
             message, client_address = server_socket.recvfrom(1024)
             client_address = Server.get_client_address(client_address)
-            print("seif")
+            # print("seif")
             threading.Thread(target=Server.handle_client, args=(
                 message, client_address, server_socket, ip_pool_file_path, blocked_mac_addresses_file_path)).start()
             # try:
@@ -1117,15 +1120,15 @@ class Server:
     @staticmethod
     def main():
         ip_pool_file_path = os.path.join(os.getcwd(), "src/server/ip_pool.txt")
-        ip_pool = [
-            # "192.168.1.100",
-            # "192.168.1.101",
-            # "192.168.1.102",
-            # "192.168.1.103",
-            # "192.168.1.104",
-        ]
+        # ip_pool = [
+        #     # "192.168.1.100",
+        #     # "192.168.1.101",
+        #     # "192.168.1.102",
+        #     # "192.168.1.103",
+        #     # "192.168.1.104",
+        # ]
         server = Server()
-        Server.write_ip_pool(ip_pool_file_path, ip_pool)
+        # Server.write_ip_pool(ip_pool_file_path, ip_pool)
         blocked_mac_addresses_file_path = os.path.join(
             os.getcwd(), "src/server/blocked_mac.txt")
         # Seif: a0:b3:cc:49:fc:d7

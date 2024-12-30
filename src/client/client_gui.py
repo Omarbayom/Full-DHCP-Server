@@ -43,7 +43,7 @@ class DHCPServerGUI:
         # Server Image using PIL to load jpg
         try:
             self.server_image = Image.open(
-                os.path.join(os.path.curdir, "utils/server.png"))
+                os.path.join(os.path.curdir, "utils/client.png"))
             self.server_image = self.server_image.resize(
                 (215, 215))  # Resize for better fitting
             self.server_image = ImageTk.PhotoImage(self.server_image)
@@ -134,9 +134,6 @@ class DHCPServerGUI:
             print(f"Error updating log display: {e}")
 
     def start_server(self):
-        Server.write_ip_pool(os.path.join(
-            os.getcwd(), "src/server/ip_pool.txt"), self.ip_list)
-
         if self.table is None or len(self.table.get_children()) == 0:
             messagebox.showerror(
                 "Error", "Cannot start server. No IPs are present.")
@@ -153,11 +150,11 @@ class DHCPServerGUI:
         # Create a new window to show logs
         self.log_window = Toplevel(self.root)
         self.log_window.title("DHCP Server Logs")
-        self.log_window.geometry("800x400")
+        self.log_window.geometry("600x400")
 
         # Create a text widget to show logs
         self.log_text = Text(self.log_window, wrap="word",
-                             height=40, width=130, bg="white", fg="black")
+                             height=20, width=70, bg="white", fg="black")
         self.log_text.pack(padx=10, pady=10)
 
         # Make the log window close behave like the "Terminate" button
