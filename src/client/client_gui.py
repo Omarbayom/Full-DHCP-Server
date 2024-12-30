@@ -6,14 +6,15 @@ from tkinter.scrolledtext import ScrolledText
 from PIL import Image, ImageTk
 import os
 from client import start_dhcp_client
+from utils import Client
 
 
 class DHCPServerGUI:
     def __init__(self, root):
         self.root = root
         self.root.title("DHCP Client GUI")
-        self.root.geometry("600x600")
-
+        self.root.geometry("800x600")
+        self.log_opened = False
         self.log_file_path = os.path.join(
             os.getcwd(), "output/client_requests.log")
 
@@ -26,6 +27,9 @@ class DHCPServerGUI:
         # Setup the main frame and show it
         self.setup_main_frame()
         self.show_main_window()
+
+        # Initialize log_text
+        self.log_text = None
 
         # Start log monitoring
         Thread(target=self.monitor_log_file, daemon=True).start()
@@ -46,7 +50,7 @@ class DHCPServerGUI:
 
         Button(
             center_frame,
-            text="Modify Server",
+            text="Modify Client",
             font=("Helvetica", 18, "bold"),
             bg="#4CAF50",
             fg="white",
@@ -61,6 +65,7 @@ class DHCPServerGUI:
         self.main_frame.pack(fill="both", expand=True)
 
     def show_modify_window(self):
+        self.log_opened = False
         """Show the modify window and hide all other frames."""
         self.hide_all_frames()
 
@@ -155,7 +160,7 @@ class DHCPServerGUI:
         """Submit client request and update the GUI based on the response."""
         requested_ip = self.requested_ip_entry.get() or None
         requested_lease = self.requested_lease_entry.get() or None
-        mac_address = self.mac_address_entry.get() or None
+        mac_address = self.mac_address_entry.get() or Client.generate_unique_mac()
 
         if not self.is_valid_ip(requested_ip):
             return
@@ -166,6 +171,9 @@ class DHCPServerGUI:
                 requested_ip=requested_ip, lease_duration=requested_lease, mac_address=mac_address)
 
             leased_ip, status, lease_time = response
+            with open(self.log_file_path, "a") as log_file:
+                log_file.write(
+                    f"Requested IP: {leased_ip}, Lease Time: {lease_time}, MAC Address: {mac_address}, Response: {status}\n")
 
             if status == "ACK":
                 self.status_label.config(text="Status: ACK", fg="green")
@@ -206,19 +214,54 @@ class DHCPServerGUI:
             return False
         return True
 
+    def update_log_display(self):
+        """Update the log display when file changes are detected."""
+        try:
+            log_file_path = os.path.join(
+                os.getcwd(), "output/client_requests.log")
+            if not os.path.exists(log_file_path):
+                print("Log file does not exist yet.")
+                return
+
+            # Read log file content
+            with open(log_file_path, "r") as log_file:
+                content = log_file.read()
+
+            # Update log text widget
+            if hasattr(self, 'log_text'):
+                self.log_text.config(state="normal")
+                self.log_text.delete(1.0, "end")
+                self.log_text.insert("end", content)
+                self.log_text.see("end")
+                self.log_text.config(state="disabled")
+
+        except Exception as e:
+            print(f"Error updating log display: {e}")
+
     def show_log_viewer(self):
         """Show the log viewer window and hide all other frames."""
+        self.log_opened = True
         self.hide_all_frames()
+        for widget in self.log_viewer_frame.winfo_children():
+            widget.destroy()
         self.log_viewer_frame.pack(fill="both", expand=True)
-
         Label(self.log_viewer_frame, text="Log Viewer",
               font=("Helvetica", 16, "bold")).pack(pady=10)
 
         self.log_text = ScrolledText(self.log_viewer_frame, font=(
-            "Helvetica", 12), wrap="word", height=20, width=70)
+            "Helvetica", 12), wrap="word", height=20, width=90)
         self.log_text.pack(pady=10)
 
-        self.load_log_file()
+        # Initial log display
+        self.update_log_display()
+        # Start a thread to continuously update the log display
+
+        def continuous_log_update():
+            while self.log_opened:
+                self.update_log_display()
+                time.sleep(1)  # Update every second
+
+        Thread(target=continuous_log_update, daemon=True).start()
 
         Button(
             self.log_viewer_frame,
