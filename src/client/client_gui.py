@@ -1,10 +1,12 @@
 from threading import Thread
 import time
-from tkinter import Tk, Label, Button, Frame, Text, Entry
-from tkinter import messagebox
-from tkinter.scrolledtext import ScrolledText
 from PIL import Image, ImageTk
 import os
+from customtkinter import CTk, CTkLabel, CTkButton, CTkFrame, CTkEntry, CTkTextbox, CTkScrollbar
+from tkinter import messagebox
+
+import customtkinter
+
 from client import start_dhcp_client
 from utils import Client
 
@@ -17,26 +19,26 @@ class DHCPServerGUI:
         self.log_opened = False
         self.log_file_path = os.path.join(
             os.getcwd(), "output/client_requests.log")
-
+        self.force_ip_var = customtkinter.StringVar(value="false")
         # Frames
-        self.main_frame = Frame(self.root)
-        self.modify_frame = Frame(self.root)
-        self.client_request_frame = Frame(self.root)
-        self.log_viewer_frame = Frame(self.root)
+        self.main_frame = CTkFrame(self.root)
+        self.modify_frame = CTkFrame(self.root)
+        self.client_request_frame = CTkFrame(self.root)
+        self.log_viewer_frame = CTkFrame(self.root)
 
         # Setup the main frame and show it
         self.setup_main_frame()
         self.show_main_window()
 
         # Initialize log_text
-        self.log_text = None
+        self.log_text = ""
 
         # Start log monitoring
         Thread(target=self.monitor_log_file, daemon=True).start()
 
     def setup_main_frame(self):
         """Setup the main frame UI."""
-        center_frame = Frame(self.main_frame)
+        center_frame = CTkFrame(self.main_frame)
         center_frame.pack(expand=True)
 
         try:
@@ -44,18 +46,17 @@ class DHCPServerGUI:
                 os.path.curdir, "utils/client.png"))
             server_image = server_image.resize((215, 215))
             self.server_image = ImageTk.PhotoImage(server_image)
-            Label(center_frame, image=self.server_image).pack(pady=10)
+            CTkLabel(center_frame, image=self.server_image,
+                     text="").pack(pady=10)
         except Exception as e:
             print(f"Error loading image: {e}")
 
-        Button(
+        CTkButton(
             center_frame,
             text="Modify Client",
             font=("Helvetica", 18, "bold"),
-            bg="#4CAF50",
-            fg="white",
-            padx=20,
-            pady=10,
+            fg_color="#4CAF50",
+            text_color="white",
             command=self.show_modify_window,
         ).pack(pady=10)
 
@@ -75,30 +76,30 @@ class DHCPServerGUI:
 
         self.modify_frame.pack(fill="both", expand=True)
 
-        Button(
+        CTkButton(
             self.modify_frame,
             text="Add Client Request",
             font=("Helvetica", 14, "bold"),
-            bg="#4CAF50",
-            fg="white",
+            fg_color="#4CAF50",
+            text_color="white",
             command=self.show_client_request_window,
         ).pack(pady=20)
 
-        Button(
+        CTkButton(
             self.modify_frame,
             text="View Log",
             font=("Helvetica", 14, "bold"),
-            bg="#2196F3",
-            fg="white",
+            fg_color="#2196F3",
+            text_color="white",
             command=self.show_log_viewer,
         ).pack(pady=20)
 
-        Button(
+        CTkButton(
             self.modify_frame,
             text="Back",
             font=("Helvetica", 14),
-            bg="red",
-            fg="white",
+            fg_color="red",
+            text_color="white",
             command=self.show_main_window,
         ).pack(pady=10)
 
@@ -109,52 +110,65 @@ class DHCPServerGUI:
             widget.destroy()
         self.client_request_frame.pack(fill="both", expand=True)
 
-        Label(self.client_request_frame, text="Enter Requested IP:",
-              font=("Helvetica", 12)).pack(pady=5)
-        self.requested_ip_entry = Entry(
+        CTkLabel(self.client_request_frame, text="Enter Requested IP:",
+                 font=("Helvetica", 12)).pack(pady=5)
+        self.requested_ip_entry = CTkEntry(
             self.client_request_frame, font=("Helvetica", 12))
         self.requested_ip_entry.pack(pady=5)
 
-        Label(self.client_request_frame, text="Enter Requested Lease Time:",
-              font=("Helvetica", 12)).pack(pady=5)
-        self.requested_lease_entry = Entry(
+        CTkLabel(self.client_request_frame, text="Enter Requested Lease Time:", font=(
+            "Helvetica", 12)).pack(pady=5)
+        self.requested_lease_entry = CTkEntry(
             self.client_request_frame, font=("Helvetica", 12))
         self.requested_lease_entry.pack(pady=5)
 
-        Label(self.client_request_frame, text="Enter MAC Address:",
-              font=("Helvetica", 12)).pack(pady=5)
-        self.mac_address_entry = Entry(
+        CTkLabel(self.client_request_frame, text="Enter MAC Address:",
+                 font=("Helvetica", 12)).pack(pady=5)
+        self.mac_address_entry = CTkEntry(
             self.client_request_frame, font=("Helvetica", 12))
         self.mac_address_entry.pack(pady=5)
-
+        self.checkbox = customtkinter.CTkCheckBox(
+            master=self.client_request_frame,
+            text="Force IP Assignment",
+            variable=self.force_ip_var,
+            onvalue="true",
+            offvalue="false",
+            command=self.on_checkbox_toggle
+        )
+        self.checkbox.pack(pady=5)
         # Add dynamic labels for status
-        self.status_label = Label(
+        self.status_label = CTkLabel(
             self.client_request_frame, text="Status: ", font=("Helvetica", 12, "bold"))
         self.status_label.pack(pady=5)
-        self.ip_label = Label(self.client_request_frame,
-                              text="Current IP: 0.0.0.0", font=("Helvetica", 12))
+        self.ip_label = CTkLabel(
+            self.client_request_frame, text="Current IP: 0.0.0.0", font=("Helvetica", 12))
         self.ip_label.pack(pady=5)
-        self.timer_label = Label(
+        self.timer_label = CTkLabel(
             self.client_request_frame, text="Lease Time: 0", font=("Helvetica", 12))
         self.timer_label.pack(pady=5)
 
-        Button(
+        CTkButton(
             self.client_request_frame,
             text="Submit",
             font=("Helvetica", 14),
-            bg="#4CAF50",
-            fg="white",
+            fg_color="#4CAF50",
+            text_color="white",
             command=self.submit_client_request,
         ).pack(pady=10)
 
-        Button(
+        CTkButton(
             self.client_request_frame,
             text="Back",
             font=("Helvetica", 14),
-            bg="red",
-            fg="white",
+            fg_color="red",
+            text_color="white",
             command=self.show_modify_window,
         ).pack(pady=10)
+
+    def on_checkbox_toggle(self):
+        # Print current value when toggled
+        pass
+        # print(f"Force IP Assignment is set to: {self.force_ip_var.get()}")
 
     def submit_client_request(self):
         """Submit client request and update the GUI based on the response."""
@@ -167,22 +181,27 @@ class DHCPServerGUI:
 
         try:
             requested_lease = int(requested_lease)
+            action = 'REQUEST' if self.force_ip_var.get() == 'false' else 'DECLINE'
             response = start_dhcp_client(
-                requested_ip=requested_ip, lease_duration=requested_lease, mac_address=mac_address)
+                requested_ip=requested_ip, lease_duration=requested_lease, mac_address=mac_address, action=action)
 
             leased_ip, status, lease_time = response
             with open(self.log_file_path, "a") as log_file:
                 log_file.write(
-                    f"Requested IP: {leased_ip}, Lease Time: {lease_time}, MAC Address: {mac_address}, Response: {status}\n")
+                    f"Requested IP: {leased_ip}, Lease Time: {
+                        lease_time}, MAC Address: {mac_address}, Response: {status}\n"
+                )
 
             if status == "ACK":
-                self.status_label.config(text="Status: ACK", fg="green")
-                self.ip_label.config(text=f"Current IP: {leased_ip}")
+                self.status_label.configure(
+                    text="Status: ACK", text_color="green")
+                self.ip_label.configure(text=f"Current IP: {leased_ip}")
                 self.start_lease_countdown(lease_time)
             else:
-                self.status_label.config(text="Status: NACK", fg="red")
-                self.ip_label.config(text="Current IP: 0.0.0.0")
-                self.timer_label.config(text="Lease Time: 0")
+                self.status_label.configure(
+                    text="Status: NACK", text_color="red")
+                self.ip_label.configure(text="Current IP: 0.0.0.0")
+                self.timer_label.configure(text="Lease Time: 0")
 
         except Exception as e:
             messagebox.showerror(
@@ -193,13 +212,13 @@ class DHCPServerGUI:
         def countdown():
             nonlocal lease_time
             while lease_time > 0:
-                self.timer_label.config(text=f"Lease Time: {lease_time}")
+                self.timer_label.configure(text=f"Lease Time: {lease_time}")
                 self.root.update()
                 time.sleep(1)
                 lease_time -= 1
             # Reset to default once the timer ends
-            self.ip_label.config(text="Current IP: 0.0.0.0")
-            self.timer_label.config(text="Lease Time: 0")
+            self.ip_label.configure(text="Current IP: 0.0.0.0")
+            self.timer_label.configure(text="Lease Time: 0")
 
         Thread(target=countdown, daemon=True).start()
 
@@ -229,11 +248,11 @@ class DHCPServerGUI:
 
             # Update log text widget
             if hasattr(self, 'log_text'):
-                self.log_text.config(state="normal")
-                self.log_text.delete(1.0, "end")
+                self.log_text.configure(state="normal")
+                self.log_text.delete("1.0", "end")
                 self.log_text.insert("end", content)
                 self.log_text.see("end")
-                self.log_text.config(state="disabled")
+                self.log_text.configure(state="disabled")
 
         except Exception as e:
             print(f"Error updating log display: {e}")
@@ -245,16 +264,15 @@ class DHCPServerGUI:
         for widget in self.log_viewer_frame.winfo_children():
             widget.destroy()
         self.log_viewer_frame.pack(fill="both", expand=True)
-        Label(self.log_viewer_frame, text="Log Viewer",
-              font=("Helvetica", 16, "bold")).pack(pady=10)
+        CTkLabel(self.log_viewer_frame, text="Log Viewer",
+                 font=("Helvetica", 16, "bold")).pack(pady=10)
 
-        self.log_text = ScrolledText(self.log_viewer_frame, font=(
-            "Helvetica", 12), wrap="word", height=20, width=90)
+        self.log_text = CTkTextbox(self.log_viewer_frame, font=(
+            "Helvetica", 12), wrap="word", height=450, width=750)
         self.log_text.pack(pady=10)
 
         # Initial log display
         self.update_log_display()
-        # Start a thread to continuously update the log display
 
         def continuous_log_update():
             while self.log_opened:
@@ -263,21 +281,14 @@ class DHCPServerGUI:
 
         Thread(target=continuous_log_update, daemon=True).start()
 
-        Button(
+        CTkButton(
             self.log_viewer_frame,
             text="Back",
             font=("Helvetica", 14),
-            bg="red",
-            fg="white",
+            fg_color="red",
+            text_color="white",
             command=self.show_modify_window,
         ).pack(pady=10)
-
-    def load_log_file(self):
-        """Load existing log file content into the text widget."""
-        if os.path.exists(self.log_file_path):
-            with open(self.log_file_path, "r") as log_file:
-                self.log_text.delete("1.0", "end")
-                self.log_text.insert("1.0", log_file.read())
 
     def monitor_log_file(self):
         """Monitor the log file for updates and display changes in the text widget."""
@@ -301,6 +312,6 @@ class DHCPServerGUI:
 
 
 if __name__ == "__main__":
-    root = Tk()
+    root = CTk()
     app = DHCPServerGUI(root)
     root.mainloop()

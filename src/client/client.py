@@ -63,7 +63,7 @@ def start_dhcp_client(mac_address=None, requested_ip=None, lease_duration=None, 
         client_socket.close()
 
 
-def start_dhcp_client_test(mac_address=None, requested_ip=None, lease_duration=None):
+def start_dhcp_client_test(mac_address=None, requested_ip=None, lease_duration=None, action='REQUEST'):
     for i, test_case in enumerate(test_cases):
         time.sleep(1)
         print("\033[93mtest case", i+1, test_case, "\033[0m")
