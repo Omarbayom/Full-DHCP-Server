@@ -219,7 +219,57 @@ class DHCPServerGUI:
 
         Thread(target=continuous_log_update, daemon=True).start()
 
-        # Run the server script
+        # Display Server.IP_GUI dictionary in a new table window
+        def display_ip_table():
+            """Open a new window to display Server.IP_GUI dictionary."""
+            if not hasattr(Server, 'IP_GUI') or not Server.IP_GUI:
+                messagebox.showerror(
+                    "Error", "No IP data available to display.")
+                return
+
+            # Create a new window for the IP table
+            ip_table_window = ctk.CTkToplevel(self.root)
+            ip_table_window.title("IP Address Table")
+            ip_table_window.geometry("600x400")
+
+            # Create a frame to hold the table
+            table_frame = ctk.CTkFrame(ip_table_window)
+            table_frame.pack(fill="both", expand=True, padx=10, pady=10)
+
+            # Create a treeview for displaying the IP table
+            columns = ("IP Address", "Value")
+            ip_tree = ttk.Treeview(
+                table_frame, columns=columns, show="headings")
+            ip_tree.heading("IP Address", text="IP Address")
+            ip_tree.heading("Value", text="Value")
+            ip_tree.pack(fill="both", expand=True, padx=10, pady=10)
+
+            # Insert data into the treeview
+            # print(Server.IP_GUI)
+
+            def insert_ip_data():
+                while True:
+                    # Clear existing entries
+                    ip_tree.delete(*ip_tree.get_children())
+                    for ip, value in Server.IP_GUI.items():
+                        ip_tree.insert("", "end", values=(ip, value))
+                    time.sleep(1)
+
+            Thread(target=insert_ip_data).start()
+
+            # Add a scroll bar for the treeview
+            scroll_bar = ttk.Scrollbar(
+                table_frame, orient="vertical", command=ip_tree.yview)
+            ip_tree.configure(yscrollcommand=scroll_bar.set)
+            scroll_bar.pack(side="right", fill="y")
+
+        # Add a button to open the IP table screen
+        self.view_ip_button = ctk.CTkButton(
+            self.root,
+            text="View IP Table",
+            command=display_ip_table
+        )
+        self.view_ip_button.pack(pady=10)
 
     def log_cleaner(self):
         log_file_path = os.path.join(os.getcwd(), "output/log.log")

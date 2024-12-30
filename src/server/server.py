@@ -193,10 +193,13 @@ class Server:
             discover_cache_lock (threading.Lock): Lock for synchronizing access to the discover cache.
         """
         # self.ip_pool_file_path
+        # Server.IP_GUI.keys == Server.ip_pool
         Server.lease_table_lock = threading.Lock()
         Server.ip_pool_lock = threading.Lock()
         Server.discover_cache_lock = threading.Lock()
         Server.ip_pool = []
+        Server.IP_GUI = {k: v for k, v in zip(
+            Server.ip_pool, "Not Assigned" * len(Server.ip_pool))}
         Server.ip_pool_file_path = os.path.join(
             os.getcwd(), "src/server/ip_pool.txt")
         Server.blocked_mac_addresses = []
@@ -712,6 +715,7 @@ class Server:
                 for mac_address, xid, mac_address in expired_clients:
                     ip, _, _ = lease_table.pop(mac_address)
                     discover_table.pop(mac_address)
+                    Server.IP_GUI[ip] = "Not Assigned"
 
                     # Return the IP to the pool
                     with Server.ip_pool_lock:
@@ -923,6 +927,7 @@ class Server:
                     requested_ip, time.time() +
                     requested_lease, discover_table[mac_address][2]
                 )
+                Server.IP_GUI[requested_ip] = mac_address
                 with Server.ip_pool_lock:
                     if requested_ip in Server.ip_pool:
                         Server.ip_pool.remove(requested_ip)
@@ -1092,6 +1097,8 @@ class Server:
         """
         Server.ip_pool_file_path = ip_pool_file_path
         Server.ip_pool = Server.load_ip_pool(ip_pool_file_path)
+        Server.IP_GUI = {k: "Not Assigned" for k in Server.ip_pool}
+
         server_socket = Server.setup_socket()
         log_message(f"DHCP Server started on {
             server_ip}, waiting for clients...", "info")
