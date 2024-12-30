@@ -4,11 +4,11 @@ import time
 import random
 from utils import Client
 # from src.server.config import ip_pool
-from config import test_cases
+from client_config import test_cases
 import subprocess
 
 
-def start_dhcp_client(mac_address=None, requested_ip=None, lease_duration=None):
+def start_dhcp_client(mac_address=None, requested_ip=None, lease_duration=None, action='REQUEST'):
     """Start the DHCP client."""
     xid = Client.generate_transaction_id()
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -30,21 +30,29 @@ def start_dhcp_client(mac_address=None, requested_ip=None, lease_duration=None):
             if xid_received != xid:
                 continue
             msg_type = message[242]
-            if msg_type == 2:  # DHCP Offer
+            if msg_type == 2:  # Handle DHCP Offer
                 offered_ip = socket.inet_ntoa(message[16:20])
                 server_identifier = socket.inet_ntoa(message[20:24])
                 print(f"Received DHCP Offer: IP {
                       offered_ip} from Server {server_identifier}")
-                Client.send_dhcp_request(client_socket, xid, mac_address,
-                                         server_identifier, offered_ip)
+                if offered_ip == requested_ip or action == 'REQUEST':
+                    Client.send_dhcp_request(client_socket, xid, mac_address,
+                                             server_identifier, offered_ip)
+                elif action == 'DECLINE':
+                    Client.send_dhcp_decline(client_socket, xid, mac_address,
+                                             server_identifier, offered_ip)
+                else:
+                    print("Invalid action")
+                    return None
 
-            elif msg_type == 5:  # DHCP Ack
+            elif msg_type == 5:  # Handle DHCP Ack
                 leased_ip = socket.inet_ntoa(message[16:20])
                 # lease_duration = struct.unpack("!I", message[244:248])[0]
                 print(f"Received DHCP Ack: IP {
                       leased_ip} assigned successfully!")
                 return [leased_ip, "ACK", lease_duration]
-            elif msg_type == 6:  # DHCP Nack
+
+            elif msg_type == 6:  # Handle DHCP Nack
                 print("Received DHCP Nack: IP not assigned!")
                 return ["", "NACK", lease_duration]
     except socket.timeout:
@@ -96,14 +104,18 @@ def start_dhcp_client_test(mac_address=None, requested_ip=None, lease_duration=N
 
 if __name__ == "__main__":
     for i, test_case in enumerate(test_cases):
-        time.sleep(2)
+        time.sleep(1)
         print("\033[93mtest case", i+1, test_case, "\033[0m")
         try:
+            action = 'REQUEST'
             if test_case == "Wait_For_Lease":
-                time.sleep(31)
-            requested_ip, lease_duration = test_cases[test_case]['inputs']
+                time.sleep(26)
+            if len(test_cases[test_case]['inputs']) == 2:
+                requested_ip, lease_duration = test_cases[test_case]['inputs']
+            else:
+                requested_ip, lease_duration, action = test_cases[test_case]['inputs']
             output = start_dhcp_client(requested_ip=requested_ip,
-                                       lease_duration=lease_duration)
+                                       lease_duration=lease_duration, action=action)
 
             if test_case == "Wait_For_Lease" or test_case == "Non_Existant_IP":
                 if test_cases[test_case]['expected_output'][1:] == output[1:]:

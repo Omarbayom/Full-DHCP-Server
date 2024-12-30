@@ -17,7 +17,7 @@ server_ip = socket.gethostbyname(socket.gethostname())
 # Example format: lease_table = {client_address: (ip, lease_expiry, xid, mac_address)}
 lease_table = {}  # 'mac_address':(requested_id,lease_time,xid)
 discover_cache = {}
-
+discover_table = {}
 # Logging configurations (Optional for better debugging)
 log_file = "dhcp_server.log"  # Path to log file
 log_level = "INFO"  # Log level: INFO, DEBUG, ERROR, etc.

@@ -50,10 +50,29 @@ test_cases = {
         'pass': False
     },
 
-    # "RELEASE_IP": {
-    #     'inputs': [None, None],
-    #     'expected_output': ["192.169.1.100", "ACK", 60],
-
-    #     'pass': False
-    # },
 }
+# "RELEASE_IP": {
+#     'inputs': [None, None],
+#     'expected_output': ["192.169.1.100", "ACK", 60],
+
+#     'pass': False
+# },
+
+# test_cases = {
+#     "Non_Existant_IP": {
+#         'inputs': ["192.168.1.115", 30],
+#         'expected_output': ["", "ACK", 30],
+
+#         'pass': False
+#     },
+#     "Decline_Request": {
+#         'inputs': ["192.168.1.100", 30],
+#         'expected_output': ["192.168.1.100", "ACK", 30],
+#         'pass': False
+#     },
+#     "Decline_Test": {
+#         'inputs': ["192.168.1.100", 30, 'DECLINE'],
+#         'expected_output': None,
+#         'pass': False
+#     },
+# }

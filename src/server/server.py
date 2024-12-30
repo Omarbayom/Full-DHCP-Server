@@ -10,7 +10,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(os.path.dirname(current_dir))
 sys.path.append(parent_dir)
 
-lease_duration, server_ip, lease_table, discover_cache, log_message = config.lease_duration, config.server_ip, config.lease_table, config.discover_cache, config.log_message
+lease_duration, server_ip, lease_table, discover_cache, log_message, discover_table = config.lease_duration, config.server_ip, config.lease_table, config.discover_cache, config.log_message, config.discover_table
 
 # ====================================================================================================
 # ====================================================================================================
@@ -699,12 +699,19 @@ class Server:
             expired_clients = []
 
             with Server.lease_table_lock:
+                for key in list(discover_table.keys()):
+                    mac_ip_pairs = [(mac, value[0])
+                                    for mac, value in lease_table.items()]
+                    if (key, discover_table[key][0]) not in mac_ip_pairs:
+                        discover_table.pop(key)
+
                 for mac_address, (ip, lease_expiry, xid) in lease_table.items():
                     if lease_expiry < current_time:
                         expired_clients.append((mac_address, xid, mac_address))
 
                 for mac_address, xid, mac_address in expired_clients:
                     ip, _, _ = lease_table.pop(mac_address)
+                    discover_table.pop(mac_address)
 
                     # Return the IP to the pool
                     with Server.ip_pool_lock:
@@ -790,8 +797,8 @@ class Server:
         with Server.ip_pool_lock:
             if requested_ip and requested_ip in Server.ip_pool:
                 with Server.lease_table_lock:
-                    lease_table[mac_address] = (
-                        requested_ip, time.time() + 2, xid)
+                    discover_table[mac_address] = (
+                        requested_ip, requested_lease, xid)
                 log_message(f"Offering Requested IP {requested_ip} to {client_address}(MAC: {
                     mac_address}) with lease duration {requested_lease} seconds", "info")
 
@@ -845,7 +852,7 @@ class Server:
                 xid, mac_address, server_socket, client_tuple)
             return
 
-        if not Server.ip_pool and (mac_address not in lease_table.keys()):
+        if not Server.ip_pool and (mac_address not in discover_table.keys()):
             log_message(
                 "IP pool is empty. Cannot assign IP to client.", "warning")
             Server.dhcp_send_nack(
@@ -867,8 +874,6 @@ class Server:
         if requested_ip and requested_ip not in Server.ip_pool:
             log_message(
                 f"Requested IP {requested_ip} is not available.", "warning")
-            if mac_address not in lease_table.keys():
-                pass
             requested_ip = Server.ip_pool[0]
 
         if not requested_ip:
@@ -913,18 +918,15 @@ class Server:
                     requested_ip} with lease duration {requested_lease} seconds", "info")
 
         with Server.lease_table_lock:
-
-            if mac_address in lease_table and lease_table[mac_address][0] == requested_ip:
+            if mac_address in discover_table and discover_table[mac_address][0] == requested_ip:
                 lease_table[mac_address] = (
                     requested_ip, time.time() +
-                    requested_lease, lease_table[mac_address][2]
+                    requested_lease, discover_table[mac_address][2]
                 )
                 with Server.ip_pool_lock:
-                    # print("IP Pool before removing", Server.ip_pool)
-                    # print("Requested IP", requested_ip)
                     if requested_ip in Server.ip_pool:
                         Server.ip_pool.remove(requested_ip)
-                    # print("IP Pool after removing", Server.ip_pool)
+
                 Server.dhcp_send_ack(
                     xid, mac_address, server_socket, client_tuple, requested_ip, requested_lease)
                 log_message(f"Assigned IP {requested_ip} to(MAC: {
@@ -932,7 +934,7 @@ class Server:
             else:
                 Server.dhcp_send_nack(
                     xid, mac_address, server_socket, client_tuple)
-                # print(lease_table)
+
                 log_message(f"Rejected IP request {requested_ip} from {
                     client_tuple}(MAC: {mac_address})", "warning")
 
@@ -941,17 +943,11 @@ class Server:
     # ====================================================================================================
     @staticmethod
     def handle_dhcp_decline(mac_address, declined_ip):
-        if mac_address in lease_table:
-            lease_record = lease_table[mac_address]
-            lease_record = list(lease_record)
-            if lease_record[0] == declined_ip:
-                # Update the expiry time to the current time
-                lease_record[1] = time.time()
-                lease_record = tuple(lease_record)
-                # Update the record in the table
-                lease_table[mac_address] = lease_record
-                log_message(f"Updated lease expiry for IP {
-                    declined_ip} to current time", "info")
+        if mac_address in discover_table:
+            discover_table.pop(mac_address)
+        else:
+            log_message(f"Client with MAC address {
+                mac_address} didn't send a discover message", "warning")
 
     # ====================================================================================================
     # ======================== Handling RELEASE Message Type (7) =========================================
@@ -1057,9 +1053,9 @@ class Server:
 
                 # print("ip pool after request", Server.ip_pool)
             case 4:  # DHCP Decline
-                declined_ip = lease_table[mac_address][0]
+                declined_ip = discover_table[mac_address][0]
                 log_message(f"Received DHCP Decline for IP {
-                            declined_ip} from {client_address}", "info")
+                            declined_ip} from {mac_address}", "info")
                 Server.handle_dhcp_decline(mac_address, declined_ip)
                 # print("in the decline branch", Server.ip_pool)
             case 7:  # DHCP Release
@@ -1145,15 +1141,15 @@ class Server:
 # ====================================================================================================
 if __name__ == "__main__":
     ip_pool_file_path = os.path.join(os.getcwd(), "src/server/ip_pool.txt")
-    ip_pool = [
-        # "192.168.1.100",
-        # "192.168.1.101",
-        # "192.168.1.102",
-        # "192.168.1.103",
-        # "192.168.1.104",
-    ]
+    # ip_pool = [
+    # "192.168.1.100",
+    # "192.168.1.101",
+    # "192.168.1.102",
+    # "192.168.1.103",
+    # "192.168.1.104",
+    # ]
     server = Server()
-    Server.write_ip_pool(ip_pool_file_path, ip_pool)
+    # Server.write_ip_pool(ip_pool_file_path, ip_pool)
     blocked_mac_addresses_file_path = os.path.join(
         os.getcwd(), "src/server/blocked_mac.txt")
     # Seif: a0:b3:cc:49:fc:d7
