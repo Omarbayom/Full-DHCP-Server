@@ -190,8 +190,7 @@ class DHCPServerGUI:
             leased_ip, status, lease_time = response
             with open(self.log_file_path, "a") as log_file:
                 log_file.write(
-                    f"Requested IP: {leased_ip}, Lease Time: {
-                        lease_time}, MAC Address: {mac_address}, Response: {status}\n"
+                    f"Requested IP: {leased_ip}, Lease Time: { lease_time}, MAC Address: {mac_address}, Response: {status}\n"
                 )
 
             if status == "ACK":

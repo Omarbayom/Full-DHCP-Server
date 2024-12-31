@@ -238,25 +238,36 @@ class DHCPServerGUI:
             table_frame.pack(fill="both", expand=True, padx=10, pady=10)
 
             # Create a treeview for displaying the IP table
-            columns = ("IP Address", "Value")
+            columns = ("IP Address", "Value","Time")
             ip_tree = ttk.Treeview(
                 table_frame, columns=columns, show="headings")
             ip_tree.heading("IP Address", text="IP Address")
             ip_tree.heading("Value", text="Value")
+            ip_tree.heading("Time", text="Time")
             ip_tree.pack(fill="both", expand=True, padx=10, pady=10)
 
             # Insert data into the treeview
             # print(Server.IP_GUI)
 
             def insert_ip_data():
-                while True:
-                    # Clear existing entries
-                    ip_tree.delete(*ip_tree.get_children())
-                    for ip, value in Server.IP_GUI.items():
-                        ip_tree.insert("", "end", values=(ip, value))
-                    time.sleep(1)
+                for ip, (value, time) in Server.IP_GUI.items():
+                    # Check if the IP already exists in the tree
+                    found = False
+                    for row in ip_tree.get_children():
+                        if ip_tree.item(row, "values")[0] == ip:
+                            # Update existing row
+                            ip_tree.item(row, values=(ip, value, time))
+                            found = True
+                            break
+                    if not found:
+                        # Insert new row if not found
+                        ip_tree.insert("", "end", values=(ip, value, time))
+                # Schedule the function to run again after 1 second
+                ip_tree.after(1000, insert_ip_data)
 
-            Thread(target=insert_ip_data).start()
+            # Start the update loop in the main thread
+            insert_ip_data()
+
 
             # Add a scroll bar for the treeview
             scroll_bar = ttk.Scrollbar(
@@ -335,8 +346,7 @@ class DHCPServerGUI:
             existing_ips = [self.table.item(
                 item)["values"][1] for item in self.table.get_children()]
             if ip in existing_ips:
-                messagebox.showwarning("Duplicate IP", f"The IP address {
-                                       ip} already exists.")
+                messagebox.showwarning("Duplicate IP", f"The IP address { ip} already exists.")
                 return
             current_row_count = len(self.table.get_children())
             self.table.insert("", "end", values=(current_row_count + 1, ip))
