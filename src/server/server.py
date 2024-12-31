@@ -250,10 +250,8 @@ class Server:
         Returns:
             list: A list of IP addresses.
         """
-        # while not file.closed:
-        #     pass
         with open(file_path, 'r') as file:
-            ip_pool = [line.strip() for line in file if line.strip()]
+            ip_pool = list(set(line.strip() for line in file if line.strip()))
         return ip_pool
 
     # ====================================================================================================
@@ -799,7 +797,6 @@ class Server:
             error_message="Requested IP is not available."
         )
         server_socket.sendto(nak_message, client_tuple)
-        # print()
 
     # ====================================================================================================
     # =============================== Sending OFFER Message ==============================================
