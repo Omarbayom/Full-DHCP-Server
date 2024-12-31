@@ -92,6 +92,7 @@ class DHCPServerGUI:
         self.delete_button = None
         self.back_button = None
         self.start_button = None
+        self.view_ip_button = None
 
     def on_closing(self):
         os._exit(0)
@@ -238,7 +239,7 @@ class DHCPServerGUI:
             table_frame.pack(fill="both", expand=True, padx=10, pady=10)
 
             # Create a treeview for displaying the IP table
-            columns = ("IP Address", "Value","Time")
+            columns = ("IP Address", "Value", "Time")
             ip_tree = ttk.Treeview(
                 table_frame, columns=columns, show="headings")
             ip_tree.heading("IP Address", text="IP Address")
@@ -268,7 +269,6 @@ class DHCPServerGUI:
             # Start the update loop in the main thread
             insert_ip_data()
 
-
             # Add a scroll bar for the treeview
             scroll_bar = ttk.Scrollbar(
                 table_frame, orient="vertical", command=ip_tree.yview)
@@ -276,12 +276,14 @@ class DHCPServerGUI:
             scroll_bar.pack(side="right", fill="y")
 
         # Add a button to open the IP table screen
-        self.view_ip_button = ctk.CTkButton(
-            self.root,
-            text="View IP Table",
-            command=display_ip_table
-        )
-        self.view_ip_button.pack(pady=10)
+
+        if self.view_ip_button is None:
+            self.view_ip_button = ctk.CTkButton(
+                self.modify_frame,
+                text="View IP Table",
+                command=display_ip_table
+            )
+            self.view_ip_button.pack(pady=10)
 
     def log_cleaner(self):
         log_file_path = os.path.join(os.getcwd(), "output/log.log")
@@ -346,7 +348,8 @@ class DHCPServerGUI:
             existing_ips = [self.table.item(
                 item)["values"][1] for item in self.table.get_children()]
             if ip in existing_ips:
-                messagebox.showwarning("Duplicate IP", f"The IP address { ip} already exists.")
+                messagebox.showwarning("Duplicate IP", f"The IP address {
+                                       ip} already exists.")
                 return
             current_row_count = len(self.table.get_children())
             self.table.insert("", "end", values=(current_row_count + 1, ip))
