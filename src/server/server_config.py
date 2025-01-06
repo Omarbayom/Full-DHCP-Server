@@ -14,7 +14,6 @@ lease_duration = 60  # Default lease time set to 1 hour (3600 seconds)
 server_ip = socket.gethostbyname(socket.gethostname())
 
 # Lease table: Keeps track of active leases and expiry times
-# Example format: lease_table = {client_address: (ip, lease_expiry, xid, mac_address)}
 lease_table = {}  # 'mac_address':(requested_id,lease_time,xid)
 discover_cache = {}
 discover_table = {}

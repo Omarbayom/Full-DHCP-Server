@@ -31,7 +31,7 @@ lease_duration, server_ip, lease_table, discover_cache, log_message, discover_ta
 # ====================================================================================================
 """
 # ====================================================================================================
-# ================================ DHCP Server Message Types ==========================================
+# ================================ DHCP Server Message Types =========================================
 # ====================================================================================================
 
 # MESSAGE TYPES:
@@ -251,7 +251,8 @@ class Server:
             list: A list of IP addresses.
         """
         with open(file_path, 'r') as file:
-            ip_pool = list(set(line.strip() for line in file if line.strip()))
+            # ip_pool = list(set(line.strip() for line in file if line.strip()))
+            ip_pool = [line.strip()for line in file if line.strip()]
         return ip_pool
 
     # ====================================================================================================
@@ -294,7 +295,6 @@ class Server:
             raise FileNotFoundError(f"Directory does not exist: {
                                     os.path.dirname(file_path)}")
 
-        # Use a set to eliminate duplicates within the provided IP pool
         # unique_ips = set(ip_pool)
 
         # Write the unique IPs to the file
@@ -486,12 +486,10 @@ class Server:
         max_message_size_option = b'\x39\x02' + \
             struct.pack('!H', max_message_size)
 
-        # Add Option Overload (Option 52)
         option_overload_option = b""
         if option_overload is not None:
             option_overload_option = b'\x34\x01' + bytes([option_overload])
 
-        # Additional Network Configuration Options
         time_offset_option = b'\x02\x04' + struct.pack('!I', time_offset)
         time_server_option = b""
         if time_servers:
@@ -560,14 +558,12 @@ class Server:
             error_message_option
         )
 
-        # Merge options with defaults
         if options:
             options_data = default_options + additional_options + \
                 options + b'\xff'  # End option
         else:
             options_data = default_options + additional_options + b'\xff'
 
-        # Construct the DHCP message
         dhcp_message = struct.pack(
             "!BBBBIHHIIII16s64s128s",
             op, htype, hlen, hops, xid, secs, flags,
@@ -617,7 +613,6 @@ class Server:
         header_size = struct.calcsize(header_format)
         unpacked_data = struct.unpack(header_format, message[:header_size])
 
-        # Map unpacked header fields to meaningful names
         dhcp_data = {
             "op": unpacked_data[0],
             "htype": unpacked_data[1],
@@ -723,7 +718,6 @@ class Server:
                     discover_table.pop(mac_address)
                     Server.IP_GUI[ip] = ["Not Assigned", 0]
 
-                    # Return the IP to the pool
                     with Server.ip_pool_lock:
                         Server.ip_pool.append(ip)
                         Server.write_ip_pool(
@@ -732,7 +726,6 @@ class Server:
                     log_message(f"Lease expired: Released IP {
                                 ip} for client(MAC: {mac_address})(XID: {xid})", "info")
 
-                    # Remove the client from discover_cache
                     with Server.discover_cache_lock:  # Ensure thread safety if discover_cache is shared across threads
                         for key in list(discover_cache.keys()):
                             log_message(f"Checking {mac_address} with {
@@ -835,7 +828,6 @@ class Server:
                     log_message(
                         f"Requested IP {requested_ip} is not available.", "warning")
                     # DHCP NAK (Not Acknowledged)
-                    # Server Identifier Option
                     nak_options = b'\x36\x04' + socket.inet_aton(server_ip)
                     nak_message = Server.construct_dhcp_message(
                         xid=xid,
@@ -887,7 +879,6 @@ class Server:
 
         if not requested_ip:
             requested_ip = Server.ip_pool[0]
-        # Save the Discover message options for later use in Request
         with Server.discover_cache_lock:
             discover_cache[mac_address] = {
                 'requested_ip': requested_ip,
@@ -917,7 +908,6 @@ class Server:
         # print("requested_ip", requested_ip)
         mac_address = Server.get_mac_address(parsed_message)  # MAC is 6 bytes
 
-        # Retrieve saved Discover data from cache
         with Server.discover_cache_lock:
             discover_data = discover_cache.get(mac_address)
             if discover_data:
@@ -1021,7 +1011,6 @@ class Server:
     # ========================= Handling the incoming client =============================================
     # ====================================================================================================
     @staticmethod
-    # Handles incoming DHCP messages from clients
     def handle_client(message, client_address, server_socket, ip_pool_file_path, blocked_mac_addresses_file_path):
         """
         Handles incoming DHCP messages from clients and responds accordingly.
@@ -1109,7 +1098,6 @@ class Server:
 
             message, client_address = server_socket.recvfrom(1024)
             client_address = Server.get_client_address(client_address)
-            # print("seif")
             threading.Thread(target=Server.handle_client, args=(
                 message, client_address, server_socket, ip_pool_file_path, blocked_mac_addresses_file_path)).start()
             # try:
@@ -1158,7 +1146,6 @@ if __name__ == "__main__":
     # Server.write_ip_pool(ip_pool_file_path, ip_pool)
     blocked_mac_addresses_file_path = os.path.join(
         os.getcwd(), "src/server/blocked_mac.txt")
-    # Seif: a0:b3:cc:49:fc:d7
     try:
         server.start_dhcp_server(ip_pool_file_path=ip_pool_file_path,
                                  blocked_mac_addresses_file_path=blocked_mac_addresses_file_path)

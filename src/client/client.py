@@ -56,8 +56,8 @@ def start_dhcp_client(mac_address=None, requested_ip=None, lease_duration=None, 
                     print("Sent DHCP Inform to server")
                 return [leased_ip, "ACK", lease_duration]
 
-            elif msg_type == 6:  # Handle DHCP Nack
-                print("Received DHCP Nack: IP not assigned!")
+            elif msg_type == 6:  # Handle DHCP NACK
+                print("Received DHCP NACK: IP not assigned!")
                 return ["", "NACK", lease_duration]
     except socket.timeout:
         print("DHCP client timed out waiting for responses.")
@@ -113,7 +113,7 @@ if __name__ == "__main__":
         try:
             action = 'REQUEST'
             if test_case == "Wait_For_Lease":
-                time.sleep(26)
+                time.sleep(31)
             if len(test_cases[test_case]['inputs']) == 2:
                 requested_ip, lease_duration = test_cases[test_case]['inputs']
             else:

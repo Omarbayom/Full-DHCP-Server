@@ -30,13 +30,11 @@ class DHCPServerGUI:
         self.ip_list = []  # Stores the IP addresses in the table
         self.root = root
         self.root.title("DHCP Server GUI")
-        # Set the window size to 600x600 for Phase 2 size
         self.root.geometry("600x600")
 
         self.server_started = False  # Flag to track if the server is running
         self.observer = None  # File system observer
 
-        # Add protocol handler for window close event
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
         self.style = ttk.Style()
         self.style.theme_use('clam')
@@ -51,41 +49,33 @@ class DHCPServerGUI:
                              font=("Arial", 10, "bold"))
         self.style.map("Treeview",
                        background=[("selected", "green")])
-        # Initial Frame (Phase 1)
         self.main_frame = ctk.CTkFrame(self.root)
         self.main_frame.pack(fill="both", expand=True)
 
-        # Create a frame to center both the image and the button vertically and horizontally
         center_frame = ctk.CTkFrame(self.main_frame)
         center_frame.pack(expand=True)
 
         try:
-            # Load the image
             script_dir = os.path.dirname(os.path.abspath(__file__))
             image_path = os.path.join(script_dir, "server.png")
             self.server_image = Image.open(image_path)
 
-            # Resize the image for better fitting
             self.server_image = self.server_image.resize((215, 215))
 
-            # Convert the image to PhotoImage format for Tkinter compatibility
             self.server_image = ImageTk.PhotoImage(self.server_image)
 
-            # Create a Label widget and display the image
             self.image_label = ctk.CTkLabel(
                 center_frame, image=self.server_image, text="")
             self.image_label.pack(pady=10)
         except Exception as e:
             print(f"Error loading image: {e}")
 
-        # Modify Server Button (Phase 1)
         self.modify_button = ctk.CTkButton(
             center_frame, text="Modify Server", font=("Helvetica", 18, "bold"), fg_color="#4CAF50", text_color="white",
             command=self.show_modify_window
         )
         self.modify_button.pack(pady=10)
 
-        # Frame for Modify Server (Phase 2 - Initially Hidden)
         self.modify_frame = ctk.CTkFrame(self.root)
         self.table = None
         self.add_button = None
@@ -101,7 +91,6 @@ class DHCPServerGUI:
         self.main_frame.pack_forget()
         self.modify_frame.pack(fill="both", expand=True)
 
-        # Create table only if it doesn't exist
         if self.table is None:
             self.table = ttk.Treeview(self.modify_frame, columns=(
                 "#", "IP Address"), show="headings")
@@ -116,7 +105,6 @@ class DHCPServerGUI:
                 self.ip_list.append(ip)
             self.table.pack(fill="both", expand=True, padx=10, pady=10)
 
-        # Create Add/Delete/Back buttons
         if self.add_button is None:
             button_frame = ctk.CTkFrame(self.modify_frame)
             button_frame.pack(pady=10)
@@ -133,7 +121,6 @@ class DHCPServerGUI:
                 "Helvetica", 15), command=self.show_main_window, width=5, fg_color="#4CAF50", text_color="white")
             self.back_button.pack(side="left", padx=5)
 
-            # Add the Start Server Button
             self.start_button = ctk.CTkButton(
                 self.modify_frame, text="Start Server", font=("Helvetica", 14, "bold"),
                 command=self.start_server, width=20, fg_color="#4CAF50", text_color="white"
@@ -148,11 +135,9 @@ class DHCPServerGUI:
                 print("Log file does not exist yet.")
                 return
 
-            # Read log file content
             with open(log_file_path, "r") as log_file:
                 content = log_file.read()
 
-            # Update log text widget
             if hasattr(self, 'log_text'):
                 self.log_text.configure(state="normal")
                 self.log_text.delete(1.0, "end")
@@ -175,18 +160,15 @@ class DHCPServerGUI:
 
         Thread(target=Server.main).start()
         self.server_started = True
-        print(f"Server started: {self.server_started}")
+        # print(f"Server started: {self.server_started}")
 
-        # Replace Start Server button with Terminate Server button
         self.start_button.configure(
             text="Terminate Server", fg_color="red", command=self.terminate_server)
 
-        # Create a new window to show logs
         self.log_window = ctk.CTkToplevel(self.root)
         self.log_window.title("DHCP Server Logs")
         self.log_window.geometry("800x400")
 
-        # Create a text widget to show logs
         log_frame = ctk.CTkFrame(self.log_window)
         log_frame.pack(fill="both", expand=True, padx=10, pady=10)
 
@@ -194,13 +176,10 @@ class DHCPServerGUI:
                                        height=750, width=800, fg_color="black", text_color="white")
         self.log_text.pack(side="left", fill="both", expand=True)
 
-        # Make the log window close behave like the "Terminate" button
         self.log_window.protocol("WM_DELETE_WINDOW", self.terminate_server)
 
-        # Disable the text widget to make it read-only
         self.log_text.configure(state="disabled")
 
-        # Set up the file system observer
         self.observer = Observer()
         log_dir = os.path.dirname(os.path.join(
             os.getcwd(), "output/log.log"))
@@ -210,10 +189,8 @@ class DHCPServerGUI:
         self.observer.schedule(event_handler, path=log_dir, recursive=False)
         self.observer.start()
 
-        # Initial log display
         self.update_log_display()
 
-        # Start a thread to continuously update the log display
         def continuous_log_update():
             while self.server_started:
                 self.update_log_display()
@@ -221,7 +198,6 @@ class DHCPServerGUI:
 
         Thread(target=continuous_log_update, daemon=True).start()
 
-        # Display Server.IP_GUI dictionary in a new table window
         def display_ip_table():
             """Open a new window to display Server.IP_GUI dictionary."""
             if not hasattr(Server, 'IP_GUI') or not Server.IP_GUI:
@@ -229,16 +205,13 @@ class DHCPServerGUI:
                     "Error", "No IP data available to display.")
                 return
 
-            # Create a new window for the IP table
             ip_table_window = ctk.CTkToplevel(self.root)
             ip_table_window.title("IP Address Table")
             ip_table_window.geometry("600x400")
 
-            # Create a frame to hold the table
             table_frame = ctk.CTkFrame(ip_table_window)
             table_frame.pack(fill="both", expand=True, padx=10, pady=10)
 
-            # Create a treeview for displaying the IP table
             columns = ("IP Address", "Value", "Time")
             ip_tree = ttk.Treeview(
                 table_frame, columns=columns, show="headings")
@@ -247,35 +220,26 @@ class DHCPServerGUI:
             ip_tree.heading("Time", text="Time")
             ip_tree.pack(fill="both", expand=True, padx=10, pady=10)
 
-            # Insert data into the treeview
             # print(Server.IP_GUI)
 
             def insert_ip_data():
                 for ip, (value, time) in Server.IP_GUI.items():
-                    # Check if the IP already exists in the tree
                     found = False
                     for row in ip_tree.get_children():
                         if ip_tree.item(row, "values")[0] == ip:
-                            # Update existing row
                             ip_tree.item(row, values=(ip, value, time))
                             found = True
                             break
                     if not found:
-                        # Insert new row if not found
                         ip_tree.insert("", "end", values=(ip, value, time))
-                # Schedule the function to run again after 1 second
                 ip_tree.after(1000, insert_ip_data)
 
-            # Start the update loop in the main thread
             insert_ip_data()
 
-            # Add a scroll bar for the treeview
             scroll_bar = ttk.Scrollbar(
                 table_frame, orient="vertical", command=ip_tree.yview)
             ip_tree.configure(yscrollcommand=scroll_bar.set)
             scroll_bar.pack(side="right", fill="y")
-
-        # Add a button to open the IP table screen
 
         if self.view_ip_button is None:
             self.view_ip_button = ctk.CTkButton(
@@ -290,22 +254,19 @@ class DHCPServerGUI:
         backup_log_file_path = os.path.join(
             os.getcwd(), "output/log_history.log")
 
-        # Copy contents to backup file
         with open(log_file_path, "r") as log_file:
             content = log_file.read()
 
         with open(backup_log_file_path, "w") as backup_log_file:
             backup_log_file.write(content)
 
-        # Empty the original log file
         with open(log_file_path, "w") as log_file:
             log_file.write("")
 
     def terminate_server(self):
         self.server_started = False
-        print(f"Server terminated: {self.server_started}")
+        # print(f"Server terminated: {self.server_started}")
 
-        # Stop the file system observer
         if self.observer:
             self.observer.stop()
             self.observer.join()
@@ -314,7 +275,6 @@ class DHCPServerGUI:
         self.start_button.configure(
             text="Start Server", fg_color="#008CBA", command=self.start_server)
 
-        # Close the log window if it's open
         if hasattr(self, 'log_window') and self.log_window.winfo_exists():
             self.log_window.destroy()
 
@@ -387,9 +347,7 @@ class DHCPServerGUI:
 
 
 if __name__ == "__main__":
-    # Modes: "System" (default), "Dark", "Light"
     ctk.set_appearance_mode("System")
-    # Themes: "blue" (default), "green", "dark-blue"
     ctk.set_default_color_theme("blue")
 
     root = ctk.CTk()
