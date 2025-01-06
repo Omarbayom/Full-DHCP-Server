@@ -20,20 +20,16 @@ class DHCPServerGUI:
         self.log_file_path = os.path.join(
             os.getcwd(), "output/client_requests.log")
         self.force_ip_var = customtkinter.StringVar(value="false")
-        # Frames
         self.main_frame = CTkFrame(self.root)
         self.modify_frame = CTkFrame(self.root)
         self.client_request_frame = CTkFrame(self.root)
         self.log_viewer_frame = CTkFrame(self.root)
 
-        # Setup the main frame and show it
         self.setup_main_frame()
         self.show_main_window()
 
-        # Initialize log_text
         self.log_text = ""
 
-        # Start log monitoring
         Thread(target=self.monitor_log_file, daemon=True).start()
 
     def setup_main_frame(self):
@@ -45,7 +41,6 @@ class DHCPServerGUI:
             script_dir = os.path.dirname(os.path.abspath(__file__))
             image_path = os.path.join(script_dir, "client.png")
             self.server_image = Image.open(image_path)
-            # Resize the image for better fitting
             self.server_image = self.server_image.resize((215, 215))
             self.server_image = ImageTk.PhotoImage(self.server_image)
             CTkLabel(center_frame, image=self.server_image,
@@ -72,7 +67,6 @@ class DHCPServerGUI:
         """Show the modify window and hide all other frames."""
         self.hide_all_frames()
 
-        # Clear existing widgets in the frame
         for widget in self.modify_frame.winfo_children():
             widget.destroy()
 
@@ -138,7 +132,6 @@ class DHCPServerGUI:
             command=self.on_checkbox_toggle
         )
         self.checkbox.pack(pady=5)
-        # Add dynamic labels for status
         self.status_label = CTkLabel(
             self.client_request_frame, text="Status: ", font=("Helvetica", 12, "bold"))
         self.status_label.pack(pady=5)
@@ -190,7 +183,8 @@ class DHCPServerGUI:
             leased_ip, status, lease_time = response
             with open(self.log_file_path, "a") as log_file:
                 log_file.write(
-                    f"Requested IP: {leased_ip}, Lease Time: { lease_time}, MAC Address: {mac_address}, Response: {status}\n"
+                    f"Requested IP: {leased_ip}, Lease Time: {
+                        lease_time}, MAC Address: {mac_address}, Response: {status}\n"
                 )
 
             if status == "ACK":
@@ -217,7 +211,7 @@ class DHCPServerGUI:
                 self.root.update()
                 time.sleep(1)
                 lease_time -= 1
-            # Reset to default once the timer ends
+
             self.ip_label.configure(text="Current IP: 0.0.0.0")
             self.timer_label.configure(text="Lease Time: 0")
 
@@ -243,11 +237,9 @@ class DHCPServerGUI:
                 print("Log file does not exist yet.")
                 return
 
-            # Read log file content
             with open(log_file_path, "r") as log_file:
                 content = log_file.read()
 
-            # Update log text widget
             if hasattr(self, 'log_text'):
                 self.log_text.configure(state="normal")
                 self.log_text.delete("1.0", "end")
@@ -272,7 +264,6 @@ class DHCPServerGUI:
             "Helvetica", 12), wrap="word", height=450, width=750)
         self.log_text.pack(pady=10)
 
-        # Initial log display
         self.update_log_display()
 
         def continuous_log_update():

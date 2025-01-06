@@ -1,64 +1,125 @@
-# RFC-Compliant-Server-Agent
- Analyzing and implementing a server agent for DHCP protocol that is compliant with the RFC2131 and RFC2132
+# RFC-Compliant-DHCP-Server-Agent
+ Analyzing and implementing a server agent for DHCP protocol that is compliant with the RFC2131 and RFC2132.
 
  ## Team Members
->  -  [Seif Yasser](https://github.com/Seif-Yasser-Ahmed)
->  -  [Mohamed Salah](https://github.com/Salah1174)
->  -  [Omar Ahmed](https://github.com/Omarbayom)
->  -  [Youssef Tamer](https://github.com/JoeCode11)
+- [@Seif-Yasser-Ahmed](https://github.com/Seif-Yasser-Ahmed)
+- [@Omarbayom](https://github.com/Omarbayom)
+- [@Salah1174](https://github.com/Salah1174)
+- [@JoeCode11](https://github.com/JoeCode11)
 
-## Phases
-1. [ ] Project Planning and Design
-2. [ ] Basic Client-Server Setup
-3. [ ]  Extend Server features
-3. [ ]  Server Optimization
------
+
+## Contributing
+
+Contributions are always welcome!
+
+See `contributing.md` for ways to get started.
+
+
+## Installation
+
+Clone the Repository
+
+```bash
+  git clone https://github.com/Seif-Yasser-Ahmed/RFC-Compliant-Server-Agent.git
+  cd RFC-Compliant-Server-Agent
+```
+
+To Open Server's GUI 
+```python
+python src/server/server_gui.py
+```
+
+To Open Client's GUI 
+```python
+python src/client/client_gui.py
+```
+To Run The Server in Terminal
+```python
+python src/server/server.py
+```
+To Run The Client in Terminal
+```python
+python src/client/client.py
+```
+
+    
+## Running Tests
+
+To run tests, run the following command
+
+```python
+  python src/client/client.py
+```
+
+
+## Roadmap
+
 ### Project Planning and Design
-Define the project scope, goals, and functionalities. Create a detailed design document 
-outlining the architecture, components, and communication protocols. 
-
-#### Steps
-- Define user authentication mechanisms. 
-- Outline the overall project scope, including key functionalities. 
-- Design the system architecture, specifying components and their interactions. 
-- Demonstrate communication/message protocols according to the RFC.
+- **Objective**: Define the project scope, goals, and functionalities. Develop a detailed design document outlining the architecture, components, and communication protocols.
+- **Achievements**:
+  - Defined project objectives and scope.
+  - Developed a comprehensive design document with system architecture and protocols.
 
 ### Basic Client-Server Setup
-Implement the foundational elements of the system, including basic client-server 
-communication using Python and sockets. 
+- **Objective**: Implement the foundational elements of the system, including basic client-server communication using Python and sockets.
+- **Achievements**:
+  - Implemented a basic server capable of handling multiple client connections.
+  - Established TCP connection for basic RFC features.
 
-#### Steps 
-- Implement a basic server application capable of handling multiple client connections. 
-- Establish a TCP connection for user authentication (if required). 
-- Implement a simple command-line interface showing the server status. 
-
-### Extend Server features
-extend the developed server agent with RFC features and error codes.
-
+### Extend Server Features
+- **Objective**: Enhance the server with advanced features and error codes as specified in the relevant RFCs.
+- **Achievements**:
+  - Supported dynamic IP allocation with precise lease durations.
+  - Configured additional parameters like domain name and DNS servers.
+  - Handled errors with RFC-compliant codes for various scenarios.
 
 ### Server Optimization
-Enhance the developed agent by optimizing communication protocols for better 
-performance according to the RFC.
-#### Steps 
-- Optimize communication protocols based on different scenarios (e.g., TCP for reliability, UDP 
-for real-time interactions).
-- Conduct performance testing to evaluate the scalability of the system. 
-- Finalize the user interface, considering usability and user experience. 
+- **Objective**: Optimize communication protocols for better performance based on different scenarios, ensuring efficient and reliable server-client interactions.
+- **Achievements**:
+  - Optimized TCP and UDP usage for enhanced performance.
+  - Conducted extensive performance testing.
+  - Finalized a user-friendly interface for better usability.
 
------
-
-## Backlog of Requirements and User Stories are according to the RFC. 
-RFCs can be found [here](https://datatracker.ietf.org/))
-
-### Dynamic Host Configuration Protocol (DHCP)
-
-- **RFC 2131**: Dynamic Host Configuration Protocol (DHCP) defines DHCP, a protocol used to automate 
-the assignment of IP addresses, subnet masks, gateways, and other network parameters. It allows 
-devices on a network to request configuration information from a DHCP server dynamically.
-
-- **RFC 2132**: DHCP Options and BOOTP Vendor Extensions. This RFC details additional options that 
-can be used with DHCP, extending the base protocol to support various configuration parameters 
-such as subnet masks, routers, and domain names. 
+### Presentation and Documentation
+- **Objective**: Compile and present the completed project, highlighting learned concepts and demonstrating implemented features.
+- **Achievements**:
+  - Finalized the codebase with clean and well-documented code.
+  - Created comprehensive user documentation for installation and configuration.
+  - Developed presentation materials showcasing the server’s capabilities and design.
 
 
-> :bulb: **Tip:** Remember to appreciate the little things in life.
+
+## Documentation
+
+- [Phase 1](https://drive.google.com/file/d/1ClTFydsEEWL7uvOUggPlx6osTgWdA_r3/view?usp=drive_link)
+
+- [Phase 2](https://drive.google.com/file/d/1WqLEdGrZj1wAxTQX6SMTMlkCWzyZshGu/view?usp=drive_link)
+
+- [Phase 3](https://drive.google.com/file/d/17odP42jeeAXGkYLvlgNXzrzAXsOb1d0s/view?usp=drive_link)
+
+- [Phase 4]()
+
+
+## Screenshots
+### State Diagram
+![image](https://github.com/user-attachments/assets/921dddd3-d096-4e91-bb24-7fc195477c10)
+
+### DHCP Timeline Diagram
+![Timeline-diagram](https://github.com/user-attachments/assets/ce96314c-218e-4dc6-a067-108e69f61c9d)
+
+### Graphical User Interface
+![Screenshot 2025-01-06 011337](https://github.com/user-attachments/assets/fc123344-a39a-442d-8ae9-09ad7c3b9a40)
+
+## Features
+
+- Light/dark mode toggle
+- Live previews
+- Fullscreen mode
+- Cross platform
+
+## License
+
+[`MIT`](https://choosealicense.com/licenses/mit/)
+
+## Random Quote
+> :bulb: **Remember to:** appreciate the little things in life.
