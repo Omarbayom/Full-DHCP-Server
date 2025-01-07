@@ -19,7 +19,7 @@ All team members contributed equally to the overall project, ensuring a balanced
 
 ## Project Structure
 ```
-└── RFC-Compliant-Server-Agent/
+RFC-Compliant-Server-Agent/
 ├── README.md
 ├── LICENSE
 ├── contributing.md
@@ -114,10 +114,10 @@ All team members contributed equally to the overall project, ensuring a balanced
   - Developed presentation materials showcasing the server’s capabilities and design.
 
 ## Documentation
-- [Phase 1](https://drive.google.com/file/d/1ClTFydsEEWL7uvOUggPlx6osTgWdA_r3/view?usp=drive_link)
-- [Phase 2](https://drive.google.com/file/d/1WqLEdGrZj1wAxTQX6SMTMlkCWzyZshGu/view?usp=drive_link)
-- [Phase 3](https://drive.google.com/file/d/17odP42jeeAXGkYLvlgNXzrzAXsOb1d0s/view?usp=drive_link)
-- [Phase 4](https://drive.google.com/file/d/1nyslLbnu_CQ_gIe3M1KlEIw7b4U_CBeE/view?usp=drive_link)
+- [Planning and Design](https://drive.google.com/file/d/1ClTFydsEEWL7uvOUggPlx6osTgWdA_r3/view?usp=drive_link)
+- [Client-Server Setup](https://drive.google.com/file/d/1WqLEdGrZj1wAxTQX6SMTMlkCWzyZshGu/view?usp=drive_link)
+- [Extend Server Features](https://drive.google.com/file/d/17odP42jeeAXGkYLvlgNXzrzAXsOb1d0s/view?usp=drive_link)
+- [Server Optimization](https://drive.google.com/file/d/1nyslLbnu_CQ_gIe3M1KlEIw7b4U_CBeE/view?usp=drive_link)
 
 ## References
 - [RFC 2131 - Dynamic Host Configuration Protocol](https://tools.ietf.org/html/rfc2131)
