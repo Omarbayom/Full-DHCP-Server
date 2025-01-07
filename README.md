@@ -2,8 +2,8 @@
 This project implements a DHCP (Dynamic Host Configuration Protocol) server that is compliant with RFC 2131 and RFC 2132. The server dynamically assigns IP addresses to clients and supports advanced DHCP features such as lease management, IP pool configuration, and error handling. The project includes both server and client implementations, along with graphical user interfaces (GUIs) for ease of use.
 
 ## Team Members
-- [@Seif-Yasser-Ahmed](https://github.com/Seif-Yasser-Ahmed)
 - [@Omarbayom](https://github.com/Omarbayom)
+- [@Seif-Yasser-Ahmed](https://github.com/Seif-Yasser-Ahmed)
 - [@Salah1174](https://github.com/Salah1174)
 - [@JoeCode11](https://github.com/JoeCode11)
 
